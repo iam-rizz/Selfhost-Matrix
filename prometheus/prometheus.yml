@@ -1,0 +1,40 @@
+###############################################################################
+#  Prometheus Configuration                                                   #
+#  Scrapes: Synapse, Node Exporter, Alertmanager                              #
+###############################################################################
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  scrape_timeout: 10s
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+
+rule_files:
+  - /etc/prometheus/alert_rules.yml
+
+scrape_configs:
+
+  # --- Synapse Metrics ---
+  - job_name: "synapse"
+    metrics_path: "/_synapse/metrics"
+    static_configs:
+      - targets: ["synapse:9000"]
+        labels:
+          instance: "matrix-synapse"
+
+  # --- Node Exporter (System Metrics) ---
+  - job_name: "node-exporter"
+    static_configs:
+      - targets: ["node-exporter:9100"]
+        labels:
+          instance: "matrix-host"
+
+  # --- Prometheus Self-Monitoring ---
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]

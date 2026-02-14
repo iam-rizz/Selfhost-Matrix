@@ -1,0 +1,29 @@
+###############################################################################
+#  Dimension Integration Manager — Configuration (YAML)                      #
+#  Variables marked with __VAR__ are replaced by setup.sh from .env          #
+###############################################################################
+
+web:
+  port: 8184
+  address: "0.0.0.0"
+
+homeserver:
+  name: "__DOMAIN__"
+  clientServerUrl: "https://__SYNAPSE_DOMAIN__"
+  federationUrl: "https://__SYNAPSE_DOMAIN__"
+  
+  # Create a user named 'dimension' in Synapse first
+  # Then get the access token and set it in .env as DIMENSION_ACCESS_TOKEN
+  accessToken: "__DIMENSION_ACCESS_TOKEN__"
+
+admins: []
+
+database:
+  file: "/data/dimension.db"
+  botData: "/data/dimension.bot.json"
+
+stickers:
+  enabled: true
+
+dimension:
+  publicUrl: "https://__DIMENSION_SUBDOMAIN__.__DOMAIN__"

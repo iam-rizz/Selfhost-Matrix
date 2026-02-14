@@ -1,0 +1,75 @@
+###############################################################################
+#  Prometheus Alert Rules                                                     #
+#  Basic alerts for Synapse + infrastructure monitoring                       #
+###############################################################################
+
+groups:
+
+  - name: synapse_alerts
+    rules:
+
+      - alert: SynapseDown
+        expr: up{job="synapse"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Synapse homeserver is down"
+          description: "Synapse has been unreachable for more than 1 minute."
+
+      - alert: SynapseHighCPU
+        expr: rate(process_cpu_seconds_total{job="synapse"}[5m]) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Synapse high CPU usage"
+          description: "Synapse CPU usage has been above 80% for 5 minutes."
+
+      - alert: SynapseHighMemory
+        expr: process_resident_memory_bytes{job="synapse"} > 2147483648
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Synapse high memory usage"
+          description: "Synapse is using more than 2GB of RAM."
+
+      - alert: SynapseFederationErrors
+        expr: rate(synapse_federation_transaction_transmission_count{status="failure"}[5m]) > 0.5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High federation error rate"
+          description: "Federation transaction failures are elevated."
+
+  - name: infrastructure_alerts
+    rules:
+
+      - alert: HighDiskUsage
+        expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) < 0.15
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Disk space low"
+          description: "Less than 15% disk space remaining on root filesystem."
+
+      - alert: HighMemoryUsage
+        expr: (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) > 0.85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage on host"
+          description: "More than 85% of system memory is in use."
+
+      - alert: NodeExporterDown
+        expr: up{job="node-exporter"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Node Exporter is down"
+          description: "Node Exporter has been unreachable for more than 2 minutes."
