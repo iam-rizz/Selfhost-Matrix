@@ -17,6 +17,7 @@ services:
       - "80:80"
       - "443:443"
       - "8448:8448" # Matrix federation
+    user: "0:989" # 0=root uid, 989=GID docker host
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
