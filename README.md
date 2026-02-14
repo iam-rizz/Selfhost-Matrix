@@ -5,47 +5,85 @@ A complete, production-grade [Matrix](https://matrix.org) homeserver deployment 
 ## 🧩 Architecture
 
 ```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│  Element Web │     │  Synapse     │     │  Dimension   │
-│  (Client)    │     │  (Homeserver)│     │  (Integr.)   │
-└──────┬───────┘     └──────┬───────┘     └──────┬───────┘
-       │                    │                    │
-       └────────┬───────────┴────────────────────┘
-                │
-         ┌──────┴───────┐
-         │    Nginx      │  ← SSL/TLS, Federation (8448)
-         │  (Reverse     │    .well-known, Security Headers
-         │   Proxy)      │
-         └──────┬────────┘
-                │
-    ┌───────────┼───────────┐
-    │           │           │
-┌───┴───┐  ┌───┴───┐  ┌───┴───┐
-│Postgre│  │ Redis │  │Coturn │
-│  SQL  │  │       │  │(TURN) │
-└───────┘  └───────┘  └───────┘
+                    Internet (80/443/8448)
+                            ↓
+                    ┌───────────────┐
+                    │   Traefik     │  ← Auto SSL, Load Balancer
+                    │ (Reverse Proxy)│    Federation (8448)
+                    └───────┬───────┘
+                            │
+        ┌───────────────────┼───────────────────┐
+        │                   │                   │
+┌───────┴────────┐  ┌───────┴────────┐  ┌──────┴──────┐
+│  Synapse Main  │  │ Synapse Workers│  │   Element   │
+│  + 3 Workers   │  │ (Generic,Media,│  │   Web       │
+│                │  │  Fed Sender)   │  │             │
+└───────┬────────┘  └───────┬────────┘  └─────────────┘
+        │                   │
+        └───────────┬───────┘
+                    │
+    ┌───────────────┼───────────────┐
+    │               │               │
+┌───┴────┐  ┌───────┴──────┐  ┌────┴─────┐
+│Postgres│  │    Redis     │  │  Coturn  │
+│  SQL   │  │   (Workers)  │  │  (TURN)  │
+└────────┘  └──────────────┘  └──────────┘
+
+Additional Services:
+• Jitsi Meet (4 containers): web, prosody, jicofo, jvb
+• Sliding Sync Proxy: 10x faster client sync
+• Dimension: Integration manager
+• Monitoring: Prometheus, Grafana, Alertmanager, Node Exporter
+• Management: pgAdmin, Synapse Admin
 ```
 
-**Monitoring:** Prometheus + Grafana + Alertmanager + Node Exporter
-**Security:** Fail2ban (with Telegram alerts) + UFW Firewall + Rate Limiting
+**Total: 22 services, 21 running containers**
+
+**Security:** Traefik auto-SSL + Fail2ban + UFW Firewall + Rate Limiting  
 **Operations:** Automated backups + Health checks + Resource monitoring
 
 ## 📋 Services
 
+### Core Services
+
 | Service | Container | Port | Description |
 |---------|-----------|------|-------------|
-| **Synapse** | `matrix-synapse` | 8008 | Matrix homeserver |
+| **Traefik** | `matrix-traefik` | 80, 443, 8448 | Reverse proxy + Auto SSL |
+| **Synapse** | `matrix-synapse` | 8008 | Matrix homeserver (main) |
+| **Synapse Worker (Generic)** | `matrix-synapse-worker-generic` | 8009 | Client/federation requests |
+| **Synapse Worker (Media)** | `matrix-synapse-worker-media` | 8010 | Media uploads/downloads |
+| **Synapse Worker (Fed Sender)** | `matrix-synapse-worker-federation-sender` | - | Outbound federation |
 | **Element** | `matrix-element` | 8080 | Web client |
 | **Dimension** | `matrix-dimension` | 8184 | Integration manager |
-| **Synapse Admin** | `matrix-synapse-admin` | 8888 | Admin panel |
+| **Sliding Sync** | `matrix-sliding-sync` | 8009 | Fast sync proxy |
+
+### Video Conferencing
+
+| Service | Container | Port | Description |
+|---------|-----------|------|-------------|
+| **Jitsi Web** | `matrix-jitsi-web` | 80 | Jitsi web UI |
+| **Jitsi Prosody** | `matrix-jitsi-prosody` | 5280 | XMPP server |
+| **Jitsi Jicofo** | `matrix-jitsi-jicofo` | - | Conference focus |
+| **Jitsi JVB** | `matrix-jitsi-jvb` | 10000/udp | Video bridge |
+
+### Infrastructure
+
+| Service | Container | Port | Description |
+|---------|-----------|------|-------------|
 | **PostgreSQL** | `matrix-postgres` | 5432 | Database |
-| **pgAdmin** | `matrix-pgadmin` | 5050 | PostgreSQL manager |
-| **Redis** | `matrix-redis` | 6379 | Cache |
+| **Redis** | `matrix-redis` | 6379 | Cache + worker coordination |
 | **Coturn** | `matrix-coturn` | 3478, 5349 | TURN/STUN server |
-| **Prometheus** | `matrix-prometheus` | 9090 | Metrics |
+
+### Monitoring & Management
+
+| Service | Container | Port | Description |
+|---------|-----------|------|-------------|
+| **Prometheus** | `matrix-prometheus` | 9090 | Metrics collection |
 | **Grafana** | `matrix-grafana` | 3000 | Dashboards |
-| **Alertmanager** | `matrix-alertmanager` | 9093 | Alerts |
+| **Alertmanager** | `matrix-alertmanager` | 9093 | Alert routing |
 | **Node Exporter** | `matrix-node-exporter` | 9100 | System metrics |
+| **pgAdmin** | `matrix-pgadmin` | 5050 | PostgreSQL manager |
+| **Synapse Admin** | `matrix-synapse-admin` | 8888 | Admin panel |
 
 ## 🚀 Quick Start
 
@@ -87,13 +125,14 @@ sudo ./setup.sh
 
 The interactive setup script will:
 - ✅ Validate your `.env` configuration
-- ✅ Create data directories
+- ✅ Create data directories (postgres, redis, synapse, traefik, jitsi, workers, etc.)
 - ✅ Substitute variables into all config templates
 - ✅ Generate Synapse signing key
-- ✅ Optionally install Nginx, Certbot, Fail2ban, UFW
-- ✅ Obtain SSL certificates
-- ✅ Start all Docker services
+- ✅ Show Traefik auto-SSL information
+- ✅ Optionally configure Fail2ban & UFW firewall
 - ✅ Set up cron jobs for backup & monitoring
+
+**Note:** Traefik will automatically request SSL certificates from Let's Encrypt when you start the services. No manual certbot needed!
 
 ### 4. Create Admin User
 
@@ -156,16 +195,25 @@ curl -s https://chat.YOUR_DOMAIN:8448/_matrix/federation/v1/version | jq .
 ```
 ├── .env.example                    # Configuration template
 ├── .gitignore                      # Ignore secrets & data
-├── docker-compose.yml              # All 11 services
+├── docker-compose.yml              # All 22 services
 ├── setup.sh                        # Interactive bootstrap
 ├── README.md                       # This file
 │
 ├── synapse/
-│   ├── homeserver.yaml             # Synapse config
+│   ├── homeserver.yaml             # Synapse config (worker mode enabled)
 │   └── log.config                  # Logging (rotating, 10MB)
 │
+├── workers/
+│   ├── generic_worker.yaml         # Client/federation worker
+│   ├── media_worker.yaml           # Media upload/download worker
+│   ├── federation_sender.yaml      # Outbound federation worker
+│   └── *_log.yaml                  # Worker log configs
+│
+├── traefik/
+│   └── traefik.yml                 # Auto SSL + routing config
+│
 ├── element/
-│   └── config.json                 # Element Web config
+│   └── config.json                 # Element Web config (Sliding Sync enabled)
 │
 ├── dimension/
 │   └── config.json                 # Dimension integration mgr
@@ -173,13 +221,16 @@ curl -s https://chat.YOUR_DOMAIN:8448/_matrix/federation/v1/version | jq .
 ├── coturn/
 │   └── turnserver.conf             # TURN/STUN server
 │
-├── nginx/
-│   ├── matrix-synapse.conf         # Synapse + .well-known + 8448
-│   ├── matrix-element.conf         # Element Web
-│   └── matrix-dimension.conf       # Dimension
+├── postgres/
+│   └── init-syncv3.sql             # Sliding Sync database init
+│
+├── nginx/                          # Legacy configs (optional, for migration)
+│   ├── matrix-synapse.conf
+│   ├── matrix-element.conf
+│   └── matrix-dimension.conf
 │
 ├── prometheus/
-│   ├── prometheus.yml              # Scrape config
+│   ├── prometheus.yml              # Scrape config (includes Traefik)
 │   └── alert_rules.yml             # Alert definitions
 │
 ├── alertmanager/
@@ -197,6 +248,7 @@ curl -s https://chat.YOUR_DOMAIN:8448/_matrix/federation/v1/version | jq .
 │
 └── scripts/
     ├── backup-postgres.sh          # Daily encrypted backups
+    ├── offsite-backup.sh           # Upload to S3/B2/Wasabi
     ├── health-check.sh             # Service health monitoring
     └── monitor-resources.sh        # RAM/disk alerting
 ```
