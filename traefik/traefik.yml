@@ -1,12 +1,9 @@
 ###############################################################################
-#  Traefik Static Configuration                                               #
+#  Traefik Static Configuration v3.4                                          #
 #  Modern reverse proxy with automatic SSL via Let's Encrypt                  #
 ###############################################################################
 
-api:
-  dashboard: true
-  insecure: false  # Dashboard via secure endpoint only
-
+# EntryPoints
 entryPoints:
   # HTTP (redirect to HTTPS)
   web:
@@ -31,16 +28,12 @@ entryPoints:
     http:
       tls:
         certResolver: letsencrypt
-  
-  # Metrics endpoint (internal only)
-  metrics:
-    address: ":8082"
 
 # Let's Encrypt SSL certificates
 certificatesResolvers:
   letsencrypt:
     acme:
-      email: __ACME_EMAIL__
+      email: ${ACME_EMAIL}
       storage: /letsencrypt/acme.json
       httpChallenge:
         entryPoint: web
@@ -51,20 +44,18 @@ providers:
     endpoint: "unix:///var/run/docker.sock"
     exposedByDefault: false
     network: matrix-net
-    watch: true
+
+# API & Dashboard
+api:
+  dashboard: true
+  insecure: false
 
 # Logging
 log:
   level: INFO
-  filePath: "/logs/traefik.log"
 
-accessLog:
-  filePath: "/logs/access.log"
-  bufferingSize: 100
+accessLog: true
 
 # Metrics for Prometheus
 metrics:
-  prometheus:
-    addEntryPointsLabels: true
-    addServicesLabels: true
-    entryPoint: metrics
+  prometheus: true

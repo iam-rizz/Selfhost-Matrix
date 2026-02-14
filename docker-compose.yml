@@ -8,9 +8,11 @@ services:
 
   # ─── Traefik (Reverse Proxy) ──────────────────────────────────────────────
   traefik:
-    image: traefik:v2.10
+    image: traefik:v3.4
     container_name: matrix-traefik
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     ports:
       - "80:80"
       - "443:443"
@@ -19,11 +21,11 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
       - ./traefik-data/letsencrypt:/letsencrypt
-      - ./traefik-data/logs:/logs
     networks:
       - matrix-net
     environment:
       - TZ=Asia/Jakarta
+      - ACME_EMAIL=${ACME_EMAIL}
     labels:
       # Dashboard
       - "traefik.enable=true"
