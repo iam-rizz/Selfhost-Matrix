@@ -98,6 +98,10 @@ for dir in "${DIRS[@]}"; do
     log "Created $dir"
 done
 
+# Fix permissions for Synapse logs directory
+chmod -R 777 "$PROJECT_DIR/synapse-data/logs" 2>/dev/null || warn "Could not chmod synapse logs (may need sudo)"
+log "Fixed Synapse logs permissions"
+
 # Fix permissions for Grafana (runs as uid 472)
 if command -v chown &>/dev/null; then
     chown -R 472:472 "$PROJECT_DIR/grafana-data" 2>/dev/null || warn "Could not chown grafana-data (may need sudo)"

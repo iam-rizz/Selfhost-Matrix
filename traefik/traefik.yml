@@ -31,6 +31,10 @@ entryPoints:
     http:
       tls:
         certResolver: letsencrypt
+  
+  # Metrics endpoint (internal only)
+  metrics:
+    address: ":8082"
 
 # Let's Encrypt SSL certificates
 certificatesResolvers:
@@ -64,8 +68,3 @@ metrics:
     addEntryPointsLabels: true
     addServicesLabels: true
     entryPoint: metrics
-
-# Metrics endpoint (internal only)
-entryPoints:
-  metrics:
-    address: ":8082"
