@@ -102,7 +102,7 @@ url_preview_ip_range_blacklist:
 
 ## Registration ##
 enable_registration: __SYNAPSE_ENABLE_REGISTRATION__
-enable_registration_without_verification: false
+enable_registration_without_verification: true
 registration_shared_secret: "__SYNAPSE_REGISTRATION_SHARED_SECRET__"
 
 ## Security ##
