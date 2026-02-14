@@ -358,7 +358,7 @@ services:
       SYNCV3_SERVER: "http://synapse:8008"
       SYNCV3_DB: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/syncv3?sslmode=disable"
       SYNCV3_SECRET: "${SLIDING_SYNC_SECRET}"
-      SYNCV3_BINDADDR: "0.0.0.0:8009"
+      SYNCV3_BINDADDR: "0.0.0.0:8011"
     depends_on:
       postgres:
         condition: service_healthy
@@ -371,7 +371,7 @@ services:
       - "traefik.http.routers.sliding-sync.rule=Host(`${SYNAPSE_DOMAIN}`) && PathPrefix(`/_matrix/client/unstable/org.matrix.msc3575`)"
       - "traefik.http.routers.sliding-sync.entrypoints=websecure"
       - "traefik.http.routers.sliding-sync.tls.certresolver=letsencrypt"
-      - "traefik.http.services.sliding-sync.loadbalancer.server.port=8009"
+      - "traefik.http.services.sliding-sync.loadbalancer.server.port=8011"
 
   # ─── Jitsi Meet (Video Conferencing) ─────────────────────────────────────
 
