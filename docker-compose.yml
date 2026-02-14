@@ -8,7 +8,7 @@ services:
 
   # ─── Traefik (Reverse Proxy) ──────────────────────────────────────────────
   traefik:
-    image: traefik:v3.0
+    image: traefik:v2.10
     container_name: matrix-traefik
     restart: unless-stopped
     ports:
