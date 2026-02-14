@@ -171,6 +171,17 @@ sed -i "s|logpath  = /path/to/synapse-data/logs/homeserver.log|logpath  = ${LOGP
     "$PROJECT_DIR/fail2ban/jail.d/matrix-synapse.conf"
 log "Updated Fail2ban jail logpath"
 
+# Export SYNAPSE_DOMAIN to .env file for docker-compose
+info "Writing SYNAPSE_DOMAIN=${SYNAPSE_DOMAIN} to .env file..."
+if grep -q "^SYNAPSE_DOMAIN=" "$PROJECT_DIR/.env" 2>/dev/null; then
+    # Update existing line
+    sed -i "s|^SYNAPSE_DOMAIN=.*|SYNAPSE_DOMAIN=${SYNAPSE_DOMAIN}|" "$PROJECT_DIR/.env"
+else
+    # Add new line after DIMENSION_SUBDOMAIN
+    sed -i "/^DIMENSION_SUBDOMAIN=/a SYNAPSE_DOMAIN=${SYNAPSE_DOMAIN}" "$PROJECT_DIR/.env"
+fi
+log "SYNAPSE_DOMAIN exported to .env"
+
 # ──────────────────────────────────────────────
 # Step 3: Generate Synapse signing key
 # ──────────────────────────────────────────────
