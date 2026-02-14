@@ -203,17 +203,18 @@ fi
 header "System Packages"
 
 echo "The following system packages are recommended:"
-echo "  • nginx (reverse proxy)"
-echo "  • certbot + python3-certbot-nginx (SSL certificates)"
 echo "  • fail2ban (brute-force protection)"
 echo "  • ufw (firewall)"
+echo "  • jq (JSON parsing for Fail2ban geolocation)"
+echo ""
+echo "Note: Nginx and Certbot are NOT needed — Traefik handles reverse proxy and SSL automatically!"
 echo ""
 read -p "Install system packages? (y/N): " INSTALL_PACKAGES
 
 if [[ "${INSTALL_PACKAGES,,}" == "y" ]]; then
     if command -v apt &>/dev/null; then
         sudo apt update
-        sudo apt install -y nginx certbot python3-certbot-nginx fail2ban ufw
+        sudo apt install -y fail2ban ufw jq curl
         log "System packages installed"
     else
         error "apt not found. Please install packages manually."
