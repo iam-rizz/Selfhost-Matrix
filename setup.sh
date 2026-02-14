@@ -82,8 +82,15 @@ DIRS=(
     "$PROJECT_DIR/grafana-data"
     "$PROJECT_DIR/prometheus-data"
     "$PROJECT_DIR/pgadmin-data"
+    "$PROJECT_DIR/traefik-data/letsencrypt"
+    "$PROJECT_DIR/traefik-data/logs"
+    "$PROJECT_DIR/jitsi-data/prosody/config"
+    "$PROJECT_DIR/jitsi-data/prosody/prosody-plugins-custom"
+    "$PROJECT_DIR/jitsi-data/jicofo"
+    "$PROJECT_DIR/jitsi-data/jvb"
     "$PROJECT_DIR/backups"
     "$PROJECT_DIR/dimension"
+    "$PROJECT_DIR/workers"
 )
 
 for dir in "${DIRS[@]}"; do
@@ -115,6 +122,8 @@ substitute_vars() {
         -e "s|__SYNAPSE_SUBDOMAIN__|${SYNAPSE_SUBDOMAIN}|g" \
         -e "s|__ELEMENT_SUBDOMAIN__|${ELEMENT_SUBDOMAIN}|g" \
         -e "s|__DIMENSION_SUBDOMAIN__|${DIMENSION_SUBDOMAIN}|g" \
+        -e "s|__JITSI_SUBDOMAIN__|${JITSI_SUBDOMAIN:-meet}|g" \
+        -e "s|__ACME_EMAIL__|${ACME_EMAIL}|g" \
         -e "s|__POSTGRES_USER__|${POSTGRES_USER}|g" \
         -e "s|__POSTGRES_PASSWORD__|${POSTGRES_PASSWORD}|g" \
         -e "s|__POSTGRES_DB__|${POSTGRES_DB}|g" \
@@ -142,6 +151,10 @@ CONFIG_FILES=(
     "$PROJECT_DIR/element/config.json"
     "$PROJECT_DIR/dimension/config.yaml"
     "$PROJECT_DIR/coturn/turnserver.conf"
+    "$PROJECT_DIR/traefik/traefik.yml"
+    "$PROJECT_DIR/workers/generic_worker.yaml"
+    "$PROJECT_DIR/workers/media_worker.yaml"
+    "$PROJECT_DIR/workers/federation_sender.yaml"
     "$PROJECT_DIR/nginx/matrix-synapse.conf"
     "$PROJECT_DIR/nginx/matrix-element.conf"
     "$PROJECT_DIR/nginx/matrix-dimension.conf"
@@ -208,53 +221,26 @@ if [[ "${INSTALL_PACKAGES,,}" == "y" ]]; then
 fi
 
 # ──────────────────────────────────────────────
-# Step 5: Configure Nginx
+# Step 5: Traefik & SSL
 # ──────────────────────────────────────────────
-header "Nginx Configuration"
+header "Traefik Reverse Proxy"
 
-read -p "Copy Nginx configs to /etc/nginx/sites-available/? (y/N): " INSTALL_NGINX
-
-if [[ "${INSTALL_NGINX,,}" == "y" ]]; then
-    sudo cp "$PROJECT_DIR/nginx/matrix-synapse.conf" /etc/nginx/sites-available/
-    sudo cp "$PROJECT_DIR/nginx/matrix-element.conf" /etc/nginx/sites-available/
-    sudo cp "$PROJECT_DIR/nginx/matrix-dimension.conf" /etc/nginx/sites-available/
-
-    # Enable sites
-    sudo ln -sf /etc/nginx/sites-available/matrix-synapse.conf /etc/nginx/sites-enabled/
-    sudo ln -sf /etc/nginx/sites-available/matrix-element.conf /etc/nginx/sites-enabled/
-    sudo ln -sf /etc/nginx/sites-available/matrix-dimension.conf /etc/nginx/sites-enabled/
-
-    # Test config
-    if sudo nginx -t; then
-        log "Nginx configuration valid"
-    else
-        error "Nginx configuration test failed — check configs"
-    fi
-fi
-
-# ──────────────────────────────────────────────
-# Step 6: SSL Certificates
-# ──────────────────────────────────────────────
-header "SSL Certificates"
-
-read -p "Obtain SSL certificates with certbot? (y/N): " GET_CERTS
-
-if [[ "${GET_CERTS,,}" == "y" ]]; then
-    DOMAINS=(
-        "${SYNAPSE_DOMAIN}"
-        "${ELEMENT_SUBDOMAIN}.${DOMAIN}"
-        "${DIMENSION_SUBDOMAIN}.${DOMAIN}"
-    )
-
-    for d in "${DOMAINS[@]}"; do
-        info "Requesting certificate for $d..."
-        sudo certbot certonly --nginx -d "$d" --non-interactive --agree-tos --register-unsafely-without-email || \
-            warn "Failed to get cert for $d — ensure DNS is pointing to this server"
-    done
-
-    sudo nginx -s reload 2>/dev/null || true
-    log "SSL certificates configured"
-fi
+info "Traefik will automatically:"
+info "  • Request SSL certificates from Let's Encrypt"
+info "  • Route traffic to all services"
+info "  • Load balance Synapse workers"
+info ""
+info "No manual Nginx or certbot configuration needed!"
+info ""
+info "After 'docker compose up', certificates will be auto-issued for:"
+info "  • ${SYNAPSE_DOMAIN}"
+info "  • ${ELEMENT_SUBDOMAIN}.${DOMAIN}"
+info "  • ${DIMENSION_SUBDOMAIN}.${DOMAIN}"
+info "  • ${JITSI_SUBDOMAIN:-meet}.${DOMAIN}"
+info "  • traefik.${DOMAIN} (dashboard)"
+info ""
+warn "IMPORTANT: Ensure DNS A records point to this server BEFORE starting!"
+info ""
 
 # ──────────────────────────────────────────────
 # Step 7: Configure Fail2ban
@@ -291,6 +277,7 @@ if [[ "${SETUP_UFW,,}" == "y" ]]; then
     sudo ufw allow 3478/udp   # TURN
     sudo ufw allow 5349/tcp   # TURNS
     sudo ufw allow 5349/udp   # TURNS
+    sudo ufw allow 10000/udp  # Jitsi video bridge
     sudo ufw allow "${TURN_MIN_PORT:-49152}:${TURN_MAX_PORT:-65535}/udp"  # TURN relay
 
     sudo ufw --force enable
@@ -361,19 +348,29 @@ fi
 header "Setup Complete! 🚀"
 
 echo -e "${BOLD}Next Steps:${NC}"
-echo "  1. Create admin user:"
+echo "  1. Start all services:"
+echo "     docker compose up -d"
+echo ""
+echo "  2. Create admin user:"
 echo "     docker exec -it matrix-synapse register_new_matrix_user -c /data/homeserver.yaml http://localhost:8008 -a"
 echo ""
-echo "  2. Create Dimension bot user (for integrations):"
+echo "  3. Create Dimension bot user (for integrations):"
 echo "     docker exec -it matrix-synapse register_new_matrix_user -c /data/homeserver.yaml http://localhost:8008"
 echo "     Then get access token and update DIMENSION_ACCESS_TOKEN in .env"
 echo ""
-echo "  3. Access your services:"
-echo "     • Element:       https://${ELEMENT_SUBDOMAIN}.${DOMAIN}"
-echo "     • Synapse Admin: http://localhost:8888 (SSH tunnel recommended)"
-echo "     • Grafana:       http://localhost:3000 (SSH tunnel recommended)"
+echo "  4. Access your services:"
+echo "     • Element:         https://${ELEMENT_SUBDOMAIN}.${DOMAIN}"
+echo "     • Synapse:         https://${SYNAPSE_DOMAIN}"
+echo "     • Jitsi Meet:      https://${JITSI_SUBDOMAIN:-meet}.${DOMAIN}"
+echo "     • Traefik:         https://traefik.${DOMAIN}/dashboard/"
+echo "     • Grafana:         http://localhost:3000 (SSH tunnel)"
+echo "     • Prometheus:      http://localhost:9090 (SSH tunnel)"
+echo "     • pgAdmin:         http://localhost:5050 (SSH tunnel)"
 echo ""
-echo "  4. Verify federation:"
+echo "  5. Verify federation:"
 echo "     https://federationtester.matrix.org/api/report?server_name=${DOMAIN}"
+echo ""
+echo "  6. Check Traefik SSL certificates:"
+echo "     docker exec matrix-traefik cat /letsencrypt/acme.json | jq '.letsencrypt.Certificates[].domain'"
 echo ""
 echo -e "${GREEN}${BOLD}Happy chatting! 💬${NC}"

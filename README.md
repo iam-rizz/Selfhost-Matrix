@@ -58,8 +58,8 @@ A complete, production-grade [Matrix](https://matrix.org) homeserver deployment 
 ### 1. Clone & Configure
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/Matrix.org-server.git
-cd Matrix.org-server
+git clone https://github.com/iam-rizz/Selfhost-Matrix.git
+cd Selfhost-Matrix
 
 # Create your configuration
 cp .env.example .env
@@ -305,8 +305,15 @@ docker compose restart dimension
 
 ## 📚 Documentation
 
+### Core Guides
 - **[Monitoring Guide](docs/MONITORING.md)** — Prometheus, Grafana, Alertmanager setup & queries
 - **[Matrix Features](docs/MATRIX_FEATURES.md)** — Complete guide to Matrix capabilities & features
+
+### Advanced Features
+- **[Traefik Reverse Proxy](docs/TRAEFIK.md)** — Auto SSL, load balancing, dashboard & troubleshooting
+- **[Sliding Sync Proxy](docs/SLIDING_SYNC.md)** — 10x faster sync for mobile clients
+- **[Jitsi Meet](docs/JITSI.md)** — Self-hosted video conferencing setup & configuration
+- **[Synapse Workers](docs/WORKERS.md)** — Horizontal scaling for high-traffic servers
 
 ## 📜 License
 

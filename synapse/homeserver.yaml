@@ -10,6 +10,34 @@ pid_file: /data/homeserver.pid
 web_client_location: "https://__ELEMENT_SUBDOMAIN__.__DOMAIN__/"
 serve_server_wellknown: true
 
+## Worker Mode ##
+# Instance map for worker coordination
+instance_map:
+  main:
+    host: synapse
+    port: 8008
+  generic_worker1:
+    host: synapse-worker-generic
+    port: 8009
+  media_worker:
+    host: synapse-worker-media
+    port: 8010
+
+# Stream writers for event distribution
+stream_writers:
+  typing: generic_worker1
+  to_device: generic_worker1
+  account_data: generic_worker1
+  receipts: generic_worker1
+  presence: generic_worker1
+
+# Federation sender instances
+federation_sender_instances:
+  - federation_sender1
+
+# Disable media repo on main process (handled by worker)
+enable_media_repo: false
+
 ## Networking ##
 listeners:
   - port: 8008

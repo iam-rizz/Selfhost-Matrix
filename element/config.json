@@ -17,7 +17,7 @@
   "integrations_widgets_urls": [
     "https://__DIMENSION_SUBDOMAIN__.__DOMAIN__/widgets"
   ],
-  "integrations_jitsi_widget_url": "https://__DIMENSION_SUBDOMAIN__.__DOMAIN__/widgets/jitsi",
+  "integrations_jitsi_widget_url": "https://__JITSI_SUBDOMAIN__.__DOMAIN__/",
   "bug_report_endpoint_url": "https://element.io/bugreports/submit",
   "room_directory": {
     "servers": [
@@ -29,5 +29,8 @@
   },
   "features": {
     "feature_jitsi": true
+  },
+  "setting_defaults": {
+    "feature_sliding_sync": true
   }
 }

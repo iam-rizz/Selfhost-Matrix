@@ -1,0 +1,27 @@
+###############################################################################
+#  Synapse Media Repository Worker Configuration                              #
+#  Handles media uploads and downloads                                        #
+###############################################################################
+
+worker_app: synapse.app.generic_worker
+worker_name: media_worker
+
+# Listeners
+worker_listeners:
+  - type: http
+    port: 8010
+    resources:
+      - names: [media]
+
+# Logging
+worker_log_config: /data/workers/media_worker_log.yaml
+
+# Redis for worker coordination
+redis:
+  enabled: true
+  host: redis
+  port: 6379
+  password: __REDIS_PASSWORD__
+
+# Enable media repository
+enable_media_repo: true

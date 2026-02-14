@@ -1,0 +1,24 @@
+###############################################################################
+#  Synapse Generic Worker Configuration                                       #
+#  Handles client and federation requests                                     #
+###############################################################################
+
+worker_app: synapse.app.generic_worker
+worker_name: generic_worker1
+
+# Listeners
+worker_listeners:
+  - type: http
+    port: 8009
+    resources:
+      - names: [client, federation]
+
+# Logging
+worker_log_config: /data/workers/generic_worker_log.yaml
+
+# Redis for worker coordination
+redis:
+  enabled: true
+  host: redis
+  port: 6379
+  password: __REDIS_PASSWORD__

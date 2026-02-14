@@ -1,0 +1,17 @@
+###############################################################################
+#  Synapse Federation Sender Worker Configuration                             #
+#  Handles outbound federation transactions                                   #
+###############################################################################
+
+worker_app: synapse.app.federation_sender
+worker_name: federation_sender1
+
+# Logging
+worker_log_config: /data/workers/federation_sender_log.yaml
+
+# Redis for worker coordination
+redis:
+  enabled: true
+  host: redis
+  port: 6379
+  password: __REDIS_PASSWORD__
