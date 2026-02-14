@@ -102,10 +102,16 @@ done
 chmod -R 777 "$PROJECT_DIR/synapse-data/logs" 2>/dev/null || warn "Could not chmod synapse logs (may need sudo)"
 log "Fixed Synapse logs permissions"
 
+# Fix permissions for Prometheus (runs as nobody, uid 65534)
+chmod -R 777 "$PROJECT_DIR/prometheus-data" 2>/dev/null || warn "Could not chmod prometheus-data"
+log "Fixed Prometheus permissions"
+
 # Fix permissions for Grafana (runs as uid 472)
 if command -v chown &>/dev/null; then
     chown -R 472:472 "$PROJECT_DIR/grafana-data" 2>/dev/null || warn "Could not chown grafana-data (may need sudo)"
 fi
+chmod -R 777 "$PROJECT_DIR/grafana-data" 2>/dev/null || warn "Could not chmod grafana-data"
+log "Fixed Grafana permissions"
 
 # ──────────────────────────────────────────────
 # Step 2: Substitute variables in config files
