@@ -360,12 +360,14 @@ docker compose restart dimension
 ### Core Guides
 - **[Monitoring Guide](docs/MONITORING.md)** — Prometheus, Grafana, Alertmanager setup & queries
 - **[Matrix Features](docs/MATRIX_FEATURES.md)** — Complete guide to Matrix capabilities & features
+- **[Debugging Guide](docs/DEBUGGING.md)** — Start services one by one, troubleshooting & health checks
 
 ### Advanced Features
 - **[Traefik Reverse Proxy](docs/TRAEFIK.md)** — Auto SSL, load balancing, dashboard & troubleshooting
 - **[Sliding Sync Proxy](docs/SLIDING_SYNC.md)** — 10x faster sync for mobile clients
 - **[Jitsi Meet](docs/JITSI.md)** — Self-hosted video conferencing setup & configuration
 - **[Synapse Workers](docs/WORKERS.md)** — Horizontal scaling for high-traffic servers
+- **[Fail2ban Notifications](docs/FAIL2BAN_NOTIFICATIONS.md)** — Enhanced Telegram alerts with geolocation
 
 ## 📜 License
 
