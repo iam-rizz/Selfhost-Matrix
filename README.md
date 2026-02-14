@@ -114,7 +114,13 @@ echo "SYNAPSE_FORM_SECRET=$(openssl rand -hex 32)"
 echo "TURN_SECRET=$(openssl rand -hex 32)"
 echo "DIMENSION_API_SECRET=$(openssl rand -hex 16)"
 echo "REDIS_PASSWORD=$(openssl rand -hex 16)"
+
+# Generate Traefik dashboard password (htpasswd format)
+./scripts/generate-traefik-password.sh
+# Follow the prompts and copy the output to your .env file
 ```
+
+**Important:** Traefik dashboard password must be in **htpasswd hash format**, not plain text. See [docs/TRAEFIK_AUTH.md](docs/TRAEFIK_AUTH.md) for details.
 
 ### 3. Run Setup
 
