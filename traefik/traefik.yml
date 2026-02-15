@@ -28,6 +28,10 @@ entryPoints:
     http:
       tls:
         certResolver: letsencrypt
+  
+  # Metrics for Prometheus
+  metrics:
+    address: ":8080"
 
 # Let's Encrypt SSL certificates
 certificatesResolvers:
@@ -58,4 +62,8 @@ accessLog: true
 
 # Metrics for Prometheus
 metrics:
-  prometheus: true
+  prometheus:
+    addEntryPointsLabels: true
+    addRoutersLabels: true
+    addServicesLabels: true
+    entryPoint: metrics

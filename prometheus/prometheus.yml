@@ -42,6 +42,6 @@ scrape_configs:
   # --- Traefik Metrics ---
   - job_name: "traefik"
     static_configs:
-      - targets: ["traefik:8082"]
+      - targets: ["traefik:8080"]
         labels:
           instance: "matrix-traefik"
