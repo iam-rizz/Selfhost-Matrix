@@ -518,46 +518,198 @@ docker logs matrix-synapse 2>&1 | grep -i error
 
 ## 💾 Backup & Restore
 
-### Automated Backups
+## 💾 Backup & Recovery
 
-**Script:** `scripts/backup.sh`
+### Backup Strategy
+
+**3-2-1 Backup Rule:**
+- **3** copies: Original + Local backup + Offsite (Telegram/Cloud)
+- **2** different media: Disk + Cloud storage
+- **1** offsite: Telegram or rclone remote
+
+---
+
+### Automated Backups (Cron)
+
+All backup scripts are automatically scheduled during setup:
+
+| Script | Schedule | Purpose | Log File |
+|--------|----------|---------|----------|
+| `backup-postgres.sh` | Daily 3 AM | PostgreSQL dump + GPG encryption | `logs/backup.log` |
+| `offsite-backup.sh` | Daily 4 AM | Send to Telegram (3 newest files) | `logs/offsite.log` |
+| `health-check.sh` | Every 5 min | Service health monitoring | `logs/health.log` |
+| `monitor-resources.sh` | Every 10 min | RAM/disk usage alerts | `logs/monitor.log` |
+
+**View cron jobs:**
+```bash
+crontab -l
+```
+
+---
+
+### 1. Local Backup (PostgreSQL)
+
+**Script:** `scripts/backup-postgres.sh`
 
 **Features:**
-- PostgreSQL dump (synapse + syncv3 databases)
-- Synapse media files
-- Configuration files
-- GPG encryption
-- Retention policy (7 days default)
+- ✅ PostgreSQL database dump
+- ✅ Gzip compression
+- ✅ Optional GPG encryption
+- ✅ 7-day retention (configurable)
+- ✅ Telegram notifications
+- ✅ Automatic cleanup
 
-**Setup:**
+**Configuration (.env):**
 ```bash
-# Configure GPG key
-GPG_RECIPIENT=your-gpg-key-id
-
-# Run backup
-./scripts/backup.sh
-
-# Schedule with cron
-crontab -e
-# Add: 0 2 * * * /path/to/Selfhost-Matrix/scripts/backup.sh
+GPG_RECIPIENT=your-gpg-key-id          # Optional: Enable encryption
+BACKUP_RETENTION_DAYS=7                # Keep backups for 7 days
+TELEGRAM_BOT_TOKEN=your-bot-token      # Optional: Notifications
+TELEGRAM_CHAT_ID=your-chat-id
 ```
 
-### Manual Backup
+**Manual run:**
+```bash
+bash scripts/backup-postgres.sh
+```
+
+**Output:**
+```
+backups/synapse_db_20260216_030001.sql.gz      # Unencrypted
+backups/synapse_db_20260216_030001.sql.gz.gpg  # Encrypted (if GPG configured)
+```
+
+**Setup GPG encryption:** See [GPG Backup Encryption Guide](docs/GPG_BACKUP_ENCRYPTION.md)
+
+---
+
+### 2. Offsite Backup (Telegram)
+
+**Script:** `scripts/offsite-backup.sh`
+
+**Strategy:** Telegram-first (reliable, instant, no hanging issues)
+
+**Features:**
+- ✅ Send 3 most recent backups to Telegram
+- ✅ 50MB file limit (sufficient for compressed DBs)
+- ✅ Instant confirmation
+- ✅ Accessible from any device
+- ✅ Timeout protection (30s per file)
+- ✅ Summary notifications
+
+**Configuration (.env):**
+```bash
+TELEGRAM_BOT_TOKEN=123456:ABC-DEF...
+TELEGRAM_CHAT_ID=123456789
+```
+
+**Manual run:**
+```bash
+bash scripts/offsite-backup.sh
+```
+
+**Telegram receives:**
+- 📁 Backup files (directly in chat)
+- 📊 Summary notification
+- 📦 File metadata (name, size, timestamp)
+
+**Optional: rclone (currently disabled)**
+- Can be re-enabled for cloud storage (S3, B2, Wasabi)
+- See `scripts/offsite-backup.sh` to uncomment rclone section
+
+---
+
+### 3. Manual Backup
 
 ```bash
-# Backup PostgreSQL
-docker exec matrix-postgres pg_dumpall -U synapse > backup.sql
+# PostgreSQL only
+docker exec matrix-postgres pg_dump -U synapse synapse | gzip > backup.sql.gz
 
-# Backup media
+# All databases
+docker exec matrix-postgres pg_dumpall -U synapse > all-databases.sql
+
+# Media files
 tar -czf media-backup.tar.gz synapse-data/media_store/
 
-# Backup configs
-tar -czf config-backup.tar.gz .env synapse/ element/ dimension/
+# Configuration
+tar -czf config-backup.tar.gz .env synapse/ traefik/ prometheus/
 ```
 
-### Restore
+---
+
+### 4. Restore from Backup
+
+#### Restore PostgreSQL
 
 ```bash
+# If encrypted with GPG
+gpg --decrypt backups/synapse_db_20260216_030001.sql.gz.gpg | gunzip > backup.sql
+
+# If unencrypted
+gunzip backups/synapse_db_20260216_030001.sql.gz
+
+# Restore to database
+docker exec -i matrix-postgres psql -U synapse synapse < backup.sql
+
+# Restart Synapse
+docker compose restart synapse
+```
+
+#### Restore from Telegram
+
+1. Open Telegram chat with bot
+2. Download backup file
+3. Transfer to server
+4. Follow restore steps above
+
+---
+
+### 5. Backup Verification
+
+```bash
+# Check local backups
+ls -lh backups/
+
+# Check backup logs
+tail -f synapse-data/logs/backup.log
+tail -f synapse-data/logs/offsite.log
+
+# Test GPG decryption
+gpg --decrypt backups/synapse_db_*.sql.gz.gpg > /dev/null
+
+# Verify Telegram delivery
+# Check bot chat for files and notifications
+```
+
+---
+
+### 6. Troubleshooting
+
+**Backup not encrypted:**
+- GPG key not configured → See [GPG Guide](docs/GPG_BACKUP_ENCRYPTION.md)
+- GPG_RECIPIENT not set in .env
+- GPG key not found
+
+**Telegram not receiving files:**
+- Check TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in .env
+- Verify bot has permission to send files
+- Check logs: `tail -f synapse-data/logs/offsite.log`
+
+**Disk space full:**
+- Reduce BACKUP_RETENTION_DAYS in .env
+- Clean old backups: `find backups/ -mtime +7 -delete`
+- Check disk usage: `df -h`
+
+---
+
+### 7. Backup Best Practices
+
+✅ **Test restoration monthly** - Verify backups actually work
+✅ **Monitor backup logs** - Check for failures
+✅ **Keep multiple copies** - Local + Telegram + Cloud
+✅ **Encrypt sensitive data** - Use GPG for production
+✅ **Document recovery** - Write down restore procedure
+✅ **Rotate GPG keys** - Annually for security
+
 # Restore PostgreSQL
 docker exec -i matrix-postgres psql -U synapse < backup.sql
 
@@ -935,6 +1087,10 @@ postgres:
 - [Traefik Metrics Fix](docs/TRAEFIK_METRICS_FIX.md)
 - [Coturn Memory Fix Guide](docs/COTURN_MEMORY_FIX.md)
 - [Traefik Dashboard Authentication](docs/TRAEFIK_AUTH.md)
+
+### Backup & Security
+- [Database Restore Guide](docs/DATABASE_RESTORE.md)
+- [GPG Backup Encryption](docs/GPG_BACKUP_ENCRYPTION.md)
 
 ---
 
