@@ -38,20 +38,33 @@ while IFS= read -r file; do
         FILENAME=$(basename "$file")
         echo "[$(date)] Uploading $FILENAME..."
         
-        # Use timeout to prevent hanging (60s per file)
+        # Use timeout and non-interactive flags to prevent hanging
+        # --no-traverse: Don't list destination, faster for single files
+        # --ignore-times: Skip timestamp checks, just upload
+        # --no-check-certificate: Skip SSL verification if causing issues
+        # 2>&1: Capture all output
         if timeout 60 rclone copy "$file" "${REMOTE_NAME}:${REMOTE_PATH}/" \
             --transfers=4 \
             --retries 1 \
             --low-level-retries 1 \
-            --timeout 30s 2>&1; then
+            --timeout 30s \
+            --no-traverse \
+            --ignore-times \
+            --quiet \
+            --no-check-certificate 2>&1 | grep -v "^$"; then
             ((UPLOADED++))
             echo "[$(date)] ✅ Success: $FILENAME"
         else
-            EXIT_CODE=$?
-            ((FAILED++))
-            if [[ $EXIT_CODE -eq 124 ]]; then
+            EXIT_CODE=${PIPESTATUS[0]}
+            if [[ $EXIT_CODE -eq 0 ]]; then
+                # Exit code 0 but grep filtered output = success
+                ((UPLOADED++))
+                echo "[$(date)] ✅ Success: $FILENAME"
+            elif [[ $EXIT_CODE -eq 124 ]]; then
+                ((FAILED++))
                 echo "[$(date)] ❌ Failed: $FILENAME (timeout after 60s)"
             else
+                ((FAILED++))
                 echo "[$(date)] ❌ Failed: $FILENAME (exit code: $EXIT_CODE)"
             fi
         fi
