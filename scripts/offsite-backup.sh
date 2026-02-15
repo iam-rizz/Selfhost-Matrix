@@ -32,7 +32,8 @@ echo "[$(date)] Starting offsite backup upload..."
 UPLOADED=0
 FAILED=0
 
-for file in "$BACKUP_DIR"/synapse_db_*.{sql.gz,sql.gz.gpg} 2>/dev/null; do
+# Find all backup files (both .sql.gz and .sql.gz.gpg)
+while IFS= read -r file; do
     if [[ -f "$file" ]]; then
         echo "[$(date)] Uploading $(basename "$file")..."
         if rclone copy "$file" "${REMOTE_NAME}:${REMOTE_PATH}/" --transfers=4 --progress; then
@@ -41,7 +42,7 @@ for file in "$BACKUP_DIR"/synapse_db_*.{sql.gz,sql.gz.gpg} 2>/dev/null; do
             ((FAILED++))
         fi
     fi
-done
+done < <(find "$BACKUP_DIR" -type f \( -name "synapse_db_*.sql.gz" -o -name "synapse_db_*.sql.gz.gpg" \))
 
 echo "[$(date)] Upload complete: $UPLOADED files uploaded, $FAILED failed"
 

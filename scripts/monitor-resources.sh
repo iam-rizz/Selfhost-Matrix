@@ -67,4 +67,6 @@ $(echo -e "$ALERT_MSG")
 🐳 Docker: <code>${DOCKER_SIZE}</code>
 🕐 <code>$(date '+%Y-%m-%d %H:%M:%S')</code>" > /dev/null
     fi
+else
+    echo "[$(date)] All Resource Normal ✅"
 fi

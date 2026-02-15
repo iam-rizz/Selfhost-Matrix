@@ -243,7 +243,7 @@ read -p "Install system packages? (y/N): " INSTALL_PACKAGES
 if [[ "${INSTALL_PACKAGES,,}" == "y" ]]; then
     if command -v apt &>/dev/null; then
         sudo apt update
-        sudo apt install -y fail2ban ufw jq curl
+        sudo apt install -y fail2ban ufw jq curl gpg
         log "System packages installed"
     else
         error "apt not found. Please install packages manually."

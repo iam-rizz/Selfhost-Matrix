@@ -37,11 +37,18 @@ docker exec "$CONTAINER_NAME" pg_dump \
 
 # Encrypt with GPG if recipient is configured
 if [[ -n "${GPG_RECIPIENT:-}" && "$GPG_RECIPIENT" != "CHANGE_ME"* ]]; then
-    gpg --batch --yes --recipient "$GPG_RECIPIENT" \
-        --encrypt "$BACKUP_FILE"
-    rm -f "$BACKUP_FILE"
-    BACKUP_FILE="${BACKUP_FILE}.gpg"
-    echo "[$(date)] Backup encrypted with GPG: $BACKUP_FILE"
+    # Check if GPG key exists
+    if gpg --list-keys "$GPG_RECIPIENT" &>/dev/null; then
+        gpg --batch --yes --recipient "$GPG_RECIPIENT" \
+            --encrypt "$BACKUP_FILE"
+        rm -f "$BACKUP_FILE"
+        BACKUP_FILE="${BACKUP_FILE}.gpg"
+        echo "[$(date)] Backup encrypted with GPG: $BACKUP_FILE"
+    else
+        echo "[$(date)] ⚠️  GPG key not found for: $GPG_RECIPIENT"
+        echo "[$(date)] ⚠️  Import key with: gpg --import /path/to/public.key"
+        echo "[$(date)] Backup created (unencrypted): $BACKUP_FILE"
+    fi
 else
     echo "[$(date)] Backup created (unencrypted): $BACKUP_FILE"
     echo "[$(date)] ⚠️  Set GPG_RECIPIENT in .env for encrypted backups"
