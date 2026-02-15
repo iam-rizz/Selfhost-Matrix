@@ -253,16 +253,16 @@ services:
     network_mode: host # Use host network to avoid port mapping overhead
     volumes:
       - ./coturn/turnserver.conf:/etc/coturn/turnserver.conf:ro
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-          cpus: '0.5'
-        reservations:
-          memory: 128M
-          cpus: '0.25'
+    # deploy:
+    #   resources:
+    #     limits:
+    #       memory: 256M
+    #       cpus: '0.5'
+    #     reservations:
+    #       memory: 128M
+    #       cpus: '0.25'
 
-  # ─── pgAdmin (PostgreSQL Manager) ────────────────────────────────────────
+    # ─── pgAdmin (PostgreSQL Manager) ────────────────────────────────────────
   pgadmin:
     image: dpage/pgadmin4:latest
     container_name: matrix-pgadmin
