@@ -328,6 +328,7 @@ if [[ "${SETUP_CRON,,}" == "y" ]]; then
     # Add cron jobs (avoid duplicates)
     CRON_JOBS=(
         "0 3 * * * $PROJECT_DIR/scripts/backup-postgres.sh >> $PROJECT_DIR/synapse-data/logs/backup.log 2>&1"
+        "0 4 * * * $PROJECT_DIR/scripts/offsite-backup.sh >> $PROJECT_DIR/synapse-data/logs/offsite.log 2>&1"
         "*/5 * * * * $PROJECT_DIR/scripts/health-check.sh >> $PROJECT_DIR/synapse-data/logs/health.log 2>&1"
         "*/10 * * * * $PROJECT_DIR/scripts/monitor-resources.sh >> $PROJECT_DIR/synapse-data/logs/monitor.log 2>&1"
     )
@@ -373,7 +374,33 @@ if [[ "${START_DOCKER,,}" == "y" ]]; then
 fi
 
 # ──────────────────────────────────────────────
-# Done!
+# Step 11: Install MOTD
+# ──────────────────────────────────────────────
+header "MOTD Setup"
+
+read -p "Install custom Matrix MOTD on SSH login? (y/N): " SETUP_MOTD
+
+if [[ "${SETUP_MOTD,,}" == "y" ]]; then
+    log "Installing MOTD..."
+    
+    # Copy MOTD script to profile.d
+    sudo cp "$PROJECT_DIR/scripts/motd.sh" /etc/profile.d/matrix-motd.sh
+    sudo chmod +x /etc/profile.d/matrix-motd.sh
+    
+    # Disable default MOTD
+    if [[ -d /etc/update-motd.d ]]; then
+        sudo chmod -x /etc/update-motd.d/* 2>/dev/null || true
+        log "Disabled default MOTD"
+    fi
+    
+    success "MOTD installed! Will show on next SSH login"
+    info "Test now: bash scripts/motd.sh"
+else
+    info "Skipped MOTD installation"
+fi
+
+# ──────────────────────────────────────────────
+# Step 12: Final Summary
 # ──────────────────────────────────────────────
 header "Setup Complete! 🚀"
 

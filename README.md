@@ -96,14 +96,25 @@ graph TB
 
 ---
 
+## 📋 Requirements
+
+### System Requirements
+- **OS**: Linux (Ubuntu 20.04+, Debian 11+)
+  - ✅ Tested on Debian 12 (Bookworm)
+  - ✅ Tested on Debian 13 (Trixie)
+- **RAM**: 4GB minimum, 8GB recommended
+- **Disk**: 20GB minimum, 50GB+ recommended
+- **CPU**: 2 cores minimum, 4+ recommended
+- **Ports**: 80, 443, 3478, 5349, 49152-50151 open
+
+---
+
 ## 🚀 Quick Start
 
 ### Prerequisites
 
 - Ubuntu 20.04+ / Debian 11+ (or any Linux with Docker)
 - Domain name with DNS configured
-- Minimum 4GB RAM, 2 CPU cores, 20GB disk
-- Ports 80, 443, 3478, 5349, 49152-50151 open
 
 ### One-Command Deployment
 

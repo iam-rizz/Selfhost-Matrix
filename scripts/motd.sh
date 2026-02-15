@@ -48,19 +48,14 @@ fi
 # Clear screen and display MOTD
 clear
 
-echo -e "${MATRIX_GREEN}"
-cat << 'EOF'
-    ███╗   ███╗ █████╗ ████████╗██████╗ ██╗██╗  ██╗
-    ████╗ ████║██╔══██╗╚══██╔══╝██╔══██╗██║╚██╗██╔╝
-    ██╔████╔██║███████║   ██║   ██████╔╝██║ ╚███╔╝ 
-    ██║╚██╔╝██║██╔══██║   ██║   ██╔══██╗██║ ██╔██╗ 
-    ██║ ╚═╝ ██║██║  ██║   ██║   ██║  ██║██║██╔╝ ██╗
-    ╚═╝     ╚═╝╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝╚═╝╚═╝  ╚═╝
-EOF
+echo -e "${MATRIX_GREEN}${BOLD}"
+echo "    ╔═══════════════════════════════════════════════════════════╗"
+echo "    ║                   MATRIX HOMESERVER                       ║"
+echo "    ╚═══════════════════════════════════════════════════════════╝"
 echo -e "${RESET}"
 
 echo -e "${CYAN}╔════════════════════════════════════════════════════════════════╗${RESET}"
-echo -e "${CYAN}║${RESET}  ${BOLD}Homeserver${RESET}                                                    ${CYAN}║${RESET}"
+echo -e "${CYAN}║${RESET}  ${BOLD}System Information${RESET}                                            ${CYAN}║${RESET}"
 echo -e "${CYAN}╠════════════════════════════════════════════════════════════════╣${RESET}"
 echo -e "${CYAN}║${RESET}  ${GRAY}Hostname:${RESET}     ${PURPLE}${HOSTNAME}${RESET}"
 echo -e "${CYAN}║${RESET}  ${GRAY}IP Address:${RESET}   ${BLUE}${IP}${RESET}"
@@ -81,11 +76,38 @@ echo -e "${CYAN}║${RESET}  ${GRAY}Active Users:${RESET} ${MATRIX_GREEN}${USERS
 echo -e "${CYAN}╚════════════════════════════════════════════════════════════════╝${RESET}"
 
 echo ""
-echo -e "  ${GRAY}Quick Commands:${RESET}"
-echo -e "    ${MATRIX_GREEN}docker compose ps${RESET}              - View all containers"
-echo -e "    ${MATRIX_GREEN}docker logs -f matrix-synapse${RESET}  - View Synapse logs"
-echo -e "    ${MATRIX_GREEN}bash scripts/backup-postgres.sh${RESET} - Run backup"
-echo -e "    ${MATRIX_GREEN}htop${RESET}                           - System monitor"
+echo -e "  ${BOLD}${MATRIX_GREEN}Access Your Services:${RESET}"
+echo ""
+
+# Load domain from .env if available
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+if [[ -f "$PROJECT_DIR/.env" ]]; then
+    source "$PROJECT_DIR/.env"
+fi
+
+# Display service URLs
+if [[ -n "${DOMAIN:-}" ]]; then
+    echo -e "  ${GRAY}Web Services:${RESET}"
+    echo -e "    ${MATRIX_GREEN}•${RESET} Element:       ${BLUE}https://${ELEMENT_SUBDOMAIN:-element}.${DOMAIN}${RESET}"
+    echo -e "    ${MATRIX_GREEN}•${RESET} Synapse:       ${BLUE}https://${SYNAPSE_DOMAIN:-${DOMAIN}}${RESET}"
+    echo -e "    ${MATRIX_GREEN}•${RESET} Jitsi Meet:    ${BLUE}https://${JITSI_SUBDOMAIN:-meet}.${DOMAIN}${RESET}"
+    echo -e "    ${MATRIX_GREEN}•${RESET} Traefik:       ${BLUE}https://traefik.${DOMAIN}/dashboard/${RESET}"
+    echo ""
+fi
+
+echo -e "  ${GRAY}SSH Tunnels (run on local machine):${RESET}"
+echo -e "    ${MATRIX_GREEN}•${RESET} All Services:  ${YELLOW}ssh -L 3000:localhost:3000 -L 9090:localhost:9090 -L 5050:localhost:5050 ${USER}@${IP}${RESET}"
+echo ""
+echo -e "  ${GRAY}Or individually:${RESET}"
+echo -e "    ${MATRIX_GREEN}•${RESET} Grafana:       ${YELLOW}ssh -L 3000:localhost:3000 ${USER}@${IP}${RESET}"
+echo -e "    ${MATRIX_GREEN}•${RESET} Prometheus:    ${YELLOW}ssh -L 9090:localhost:9090 ${USER}@${IP}${RESET}"
+echo -e "    ${MATRIX_GREEN}•${RESET} pgAdmin:       ${YELLOW}ssh -L 5050:localhost:5050 ${USER}@${IP}${RESET}"
+echo ""
+echo -e "  ${GRAY}Then access:${RESET}"
+echo -e "    ${MATRIX_GREEN}•${RESET} Grafana:       ${BLUE}http://localhost:3000${RESET}"
+echo -e "    ${MATRIX_GREEN}•${RESET} Prometheus:    ${BLUE}http://localhost:9090${RESET}"
+echo -e "    ${MATRIX_GREEN}•${RESET} pgAdmin:       ${BLUE}http://localhost:5050${RESET}"
 echo ""
 echo -e "  ${GRAY}Documentation:${RESET} ${BLUE}https://github.com/iam-rizz/Selfhost-Matrix${RESET}"
 echo ""
