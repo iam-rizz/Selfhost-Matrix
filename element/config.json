@@ -31,6 +31,6 @@
     "feature_jitsi": true
   },
   "setting_defaults": {
-    "feature_sliding_sync": true
+    "feature_sliding_sync": false
   }
 }
