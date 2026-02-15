@@ -183,3 +183,8 @@ trusted_key_servers:
   - server_name: "matrix.org"
 
 suppress_key_server_warning: true
+
+## Experimental Features ##
+experimental_features:
+  # Native Sliding Sync (MSC3575) - replaces external sliding-sync proxy
+  msc3575_enabled: true
