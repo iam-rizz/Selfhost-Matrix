@@ -276,7 +276,75 @@ warn "IMPORTANT: Ensure DNS A records point to this server BEFORE starting!"
 info ""
 
 # ──────────────────────────────────────────────
+# ──────────────────────────────────────────────
+# Step 6: Generate Dimension Access Token
+# ──────────────────────────────────────────────
+header "Dimension Bot Setup"
+
+echo "Dimension requires a bot user with an access token for integrations."
+echo ""
+read -p "Generate Dimension bot user and access token? (y/N): " SETUP_DIMENSION
+
+if [[ "${SETUP_DIMENSION,,}" == "y" ]]; then
+    echo ""
+    info "Starting services to create bot user..."
+    docker compose up -d synapse postgres redis 2>/dev/null
+    
+    # Wait for Synapse to be ready
+    info "Waiting for Synapse to start (30 seconds)..."
+    sleep 30
+    
+    echo ""
+    info "Creating Dimension bot user..."
+    echo "Please enter a password for the 'dimension' bot user:"
+    
+    # Create dimension user
+    if docker exec -it matrix-synapse register_new_matrix_user \
+        -c /data/homeserver.yaml \
+        http://localhost:8008 \
+        -u dimension \
+        --no-admin 2>/dev/null; then
+        
+        echo ""
+        info "Getting access token..."
+        echo "Please enter the password you just set:"
+        read -s DIMENSION_PASSWORD
+        
+        # Get access token
+        ACCESS_TOKEN=$(curl -s -X POST "http://localhost:8008/_matrix/client/r0/login" \
+            -H "Content-Type: application/json" \
+            -d "{\"type\":\"m.login.password\",\"user\":\"dimension\",\"password\":\"${DIMENSION_PASSWORD}\"}" \
+            | jq -r '.access_token')
+        
+        if [[ -n "$ACCESS_TOKEN" ]] && [[ "$ACCESS_TOKEN" != "null" ]]; then
+            # Update .env file
+            if grep -q "^DIMENSION_ACCESS_TOKEN=" "$PROJECT_DIR/.env" 2>/dev/null; then
+                sed -i "s|^DIMENSION_ACCESS_TOKEN=.*|DIMENSION_ACCESS_TOKEN=${ACCESS_TOKEN}|" "$PROJECT_DIR/.env"
+            else
+                echo "DIMENSION_ACCESS_TOKEN=${ACCESS_TOKEN}" >> "$PROJECT_DIR/.env"
+            fi
+            
+            log "✅ Dimension access token generated and saved to .env"
+            echo ""
+            info "Token: ${ACCESS_TOKEN:0:20}..."
+        else
+            warn "Failed to get access token. You can get it manually later with:"
+            echo "  curl -s -X POST \"http://localhost:8008/_matrix/client/r0/login\" \\"
+            echo "    -H \"Content-Type: application/json\" \\"
+            echo "    -d '{\"type\":\"m.login.password\",\"user\":\"dimension\",\"password\":\"YOUR_PASSWORD\"}' \\"
+            echo "    | jq -r '.access_token'"
+        fi
+    else
+        warn "Failed to create dimension user. You can create it manually later."
+    fi
+else
+    info "Skipped. You can create the bot user later with:"
+    echo "  docker exec -it matrix-synapse register_new_matrix_user -c /data/homeserver.yaml http://localhost:8008"
+fi
+
+# ──────────────────────────────────────────────
 # Step 7: Configure Fail2ban
+# ──────────────────────────────────────────────
 # ──────────────────────────────────────────────
 header "Fail2ban Configuration"
 
@@ -414,11 +482,7 @@ echo ""
 echo "  2. Create admin user:"
 echo "     docker exec -it matrix-synapse register_new_matrix_user -c /data/homeserver.yaml http://localhost:8008 -a"
 echo ""
-echo "  3. Create Dimension bot user (for integrations):"
-echo "     docker exec -it matrix-synapse register_new_matrix_user -c /data/homeserver.yaml http://localhost:8008"
-echo "     Then get access token and update DIMENSION_ACCESS_TOKEN in .env"
-echo ""
-echo "  4. Access your services:"
+echo "  3. Access your services:"
 echo "     • Element:         https://${ELEMENT_SUBDOMAIN}.${DOMAIN}"
 echo "     • Synapse:         https://${SYNAPSE_DOMAIN}"
 echo "     • Jitsi Meet:      https://${JITSI_SUBDOMAIN:-meet}.${DOMAIN}"
@@ -427,10 +491,10 @@ echo "     • Grafana:         http://localhost:3000 (SSH tunnel)"
 echo "     • Prometheus:      http://localhost:9090 (SSH tunnel)"
 echo "     • pgAdmin:         http://localhost:5050 (SSH tunnel)"
 echo ""
-echo "  5. Verify federation:"
+echo "  4. Verify federation:"
 echo "     https://federationtester.matrix.org/api/report?server_name=${DOMAIN}"
 echo ""
-echo "  6. Check Traefik SSL certificates:"
+echo "  5. Check Traefik SSL certificates:"
 echo "     docker exec matrix-traefik cat /letsencrypt/acme.json | jq '.letsencrypt.Certificates[].domain'"
 echo ""
 echo -e "${GREEN}${BOLD}Happy chatting! 💬${NC}"
