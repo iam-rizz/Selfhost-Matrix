@@ -396,7 +396,7 @@ if [[ "${SETUP_MOTD,,}" == "y" ]]; then
         log "Disabled default MOTD"
     fi
     
-    success "MOTD installed! Will show on next SSH login"
+    info "MOTD installed! Will show on next SSH login"
     info "Test now: bash scripts/motd.sh"
 else
     info "Skipped MOTD installation"
