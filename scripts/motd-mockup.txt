@@ -1,0 +1,53 @@
+┌─────────────────────────────────────────────────────────────────────────┐
+│                                                                         │
+│    ███╗   ███╗ █████╗ ████████╗██████╗ ██╗██╗  ██╗                    │
+│    ████╗ ████║██╔══██╗╚══██╔══╝██╔══██╗██║╚██╗██╔╝                    │
+│    ██╔████╔██║███████║   ██║   ██████╔╝██║ ╚███╔╝                     │
+│    ██║╚██╔╝██║██╔══██║   ██║   ██╔══██╗██║ ██╔██╗                     │
+│    ██║ ╚═╝ ██║██║  ██║   ██║   ██║  ██║██║██╔╝ ██╗                    │
+│    ╚═╝     ╚═╝╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝╚═╝╚═╝  ╚═╝                    │
+│                                                                         │
+│ ╔════════════════════════════════════════════════════════════════╗     │
+│ ║  Homeserver                                                    ║     │
+│ ╠════════════════════════════════════════════════════════════════╣     │
+│ ║  Hostname:     rizz-matrix                                     ║     │
+│ ║  IP Address:   192.168.1.100                                   ║     │
+│ ║  Kernel:       6.1.0-28-amd64                                  ║     │
+│ ║  Uptime:       15 days, 3 hours                                ║     │
+│ ╠════════════════════════════════════════════════════════════════╣     │
+│ ║  Resources                                                     ║     │
+│ ╠════════════════════════════════════════════════════════════════╣     │
+│ ║  Load Average: 0.45, 0.52, 0.48                                ║     │
+│ ║  Memory:       6.2G / 16G (39%)                                ║     │
+│ ║  Disk Usage:   45G / 200G (23%)                                ║     │
+│ ╠════════════════════════════════════════════════════════════════╣     │
+│ ║  Services                                                      ║     │
+│ ╠════════════════════════════════════════════════════════════════╣     │
+│ ║  Synapse:      ● Running                                       ║     │
+│ ║  Containers:   12/15                                           ║     │
+│ ║  Active Users: 3                                               ║     │
+│ ╚════════════════════════════════════════════════════════════════╝     │
+│                                                                         │
+│   Quick Commands:                                                      │
+│     docker compose ps              - View all containers               │
+│     docker logs -f matrix-synapse  - View Synapse logs                 │
+│     bash scripts/backup-postgres.sh - Run backup                       │
+│     htop                           - System monitor                    │
+│                                                                         │
+│   Documentation: https://github.com/iam-rizz/Selfhost-Matrix          │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+
+COLORS:
+- ASCII Art "MATRIX": Bright Green (#00FF00)
+- Borders: Cyan (#00FFFF)
+- Section Headers: White Bold
+- Hostname: Purple (#9B59D6)
+- IP Address: Blue (#3498DB)
+- Uptime: Yellow (#F1C40F)
+- Load/Memory/Disk: White/Yellow
+- Synapse Status: Green dot (●) + text
+- Container counts: Green
+- Quick Commands: Green text
+- Documentation link: Blue
+- Background: Black terminal
