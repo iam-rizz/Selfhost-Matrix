@@ -117,6 +117,10 @@ log "Fixed Grafana permissions"
 chmod -R 777 "$PROJECT_DIR/pgadmin-data" 2>/dev/null || warn "Could not chmod pgadmin-data"
 log "Fixed pgAdmin permissions"
 
+# Fix permissions for Dimension (needs write access to /data)
+chmod -R 777 "$PROJECT_DIR/dimension" 2>/dev/null || warn "Could not chmod dimension"
+log "Fixed Dimension permissions"
+
 # ──────────────────────────────────────────────
 # Step 2: Substitute variables in config files
 # ──────────────────────────────────────────────
