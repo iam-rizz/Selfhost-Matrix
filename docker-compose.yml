@@ -260,6 +260,14 @@ services:
       - ./coturn/turnserver.conf:/etc/coturn/turnserver.conf:ro
     networks:
       - matrix-net
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+        reservations:
+          memory: 128M
+          cpus: '0.25'
 
   # ─── pgAdmin (PostgreSQL Manager) ────────────────────────────────────────
   pgadmin:
