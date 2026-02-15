@@ -113,6 +113,10 @@ fi
 chmod -R 777 "$PROJECT_DIR/grafana-data" 2>/dev/null || warn "Could not chmod grafana-data"
 log "Fixed Grafana permissions"
 
+# Fix permissions for pgAdmin
+chmod -R 777 "$PROJECT_DIR/pgadmin-data" 2>/dev/null || warn "Could not chmod pgadmin-data"
+log "Fixed pgAdmin permissions"
+
 # ──────────────────────────────────────────────
 # Step 2: Substitute variables in config files
 # ──────────────────────────────────────────────
