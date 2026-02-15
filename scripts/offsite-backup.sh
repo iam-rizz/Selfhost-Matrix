@@ -35,13 +35,25 @@ FAILED=0
 # Find all backup files (both .sql.gz and .sql.gz.gpg)
 while IFS= read -r file; do
     if [[ -f "$file" ]]; then
-        echo "[$(date)] Uploading $(basename "$file")..."
-        if rclone copy "$file" "${REMOTE_NAME}:${REMOTE_PATH}/" --transfers=4; then
+        FILENAME=$(basename "$file")
+        echo "[$(date)] Uploading $FILENAME..."
+        
+        # Use timeout to prevent hanging (60s per file)
+        if timeout 60 rclone copy "$file" "${REMOTE_NAME}:${REMOTE_PATH}/" \
+            --transfers=4 \
+            --retries 1 \
+            --low-level-retries 1 \
+            --timeout 30s 2>&1; then
             ((UPLOADED++))
-            echo "[$(date)] ✅ Success: $(basename "$file")"
+            echo "[$(date)] ✅ Success: $FILENAME"
         else
+            EXIT_CODE=$?
             ((FAILED++))
-            echo "[$(date)] ❌ Failed: $(basename "$file")"
+            if [[ $EXIT_CODE -eq 124 ]]; then
+                echo "[$(date)] ❌ Failed: $FILENAME (timeout after 60s)"
+            else
+                echo "[$(date)] ❌ Failed: $FILENAME (exit code: $EXIT_CODE)"
+            fi
         fi
     fi
 done < <(find "$BACKUP_DIR" -type f \( -name "synapse_db_*.sql.gz" -o -name "synapse_db_*.sql.gz.gpg" \))
