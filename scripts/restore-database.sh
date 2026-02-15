@@ -128,17 +128,20 @@ fi
 
 # Step 4: Terminate active connections
 log "🔌 Terminating active database connections..."
-docker exec matrix-postgres psql -U synapse -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='synapse' AND pid <> pg_backend_pid();" 2>/dev/null || true
+docker exec matrix-postgres psql -U synapse postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='synapse' AND pid <> pg_backend_pid();" 2>/dev/null || true
 
-# Step 5: Drop existing database
+# Wait a moment for connections to close
+sleep 2
+
+# Step 5: Drop existing database (connect to postgres db, not synapse)
 log "🗑️  Dropping existing database..."
-if ! docker exec matrix-postgres psql -U synapse -c "DROP DATABASE IF EXISTS synapse;" 2>/dev/null; then
-    error "Failed to drop database"
+if ! docker exec matrix-postgres psql -U synapse postgres -c "DROP DATABASE IF EXISTS synapse;" 2>/dev/null; then
+    error "Failed to drop database. Check for active connections: docker exec matrix-postgres psql -U synapse postgres -c \"SELECT * FROM pg_stat_activity WHERE datname='synapse';\""
 fi
 
 # Step 6: Create new database
 log "🆕 Creating new database..."
-if ! docker exec matrix-postgres psql -U synapse -c "CREATE DATABASE synapse ENCODING 'UTF8' LC_COLLATE='C' LC_CTYPE='C' TEMPLATE=template0;" 2>/dev/null; then
+if ! docker exec matrix-postgres psql -U synapse postgres -c "CREATE DATABASE synapse ENCODING 'UTF8' LC_COLLATE='C' LC_CTYPE='C' TEMPLATE=template0;" 2>/dev/null; then
     error "Failed to create database"
 fi
 
