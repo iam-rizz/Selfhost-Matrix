@@ -50,6 +50,7 @@ services:
       POSTGRES_INITDB_ARGS: ${POSTGRES_INITDB_ARGS:---lc-collate=C --lc-ctype=C --encoding=UTF8}
     volumes:
       - ./postgres-data:/var/lib/postgresql/data
+      - ./postgres/init-syncv3.sql:/docker-entrypoint-initdb.d/init-syncv3.sql
     networks:
       - matrix-net
     healthcheck:
