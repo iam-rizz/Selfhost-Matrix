@@ -1,140 +1,234 @@
 # Synapse Monitoring Dashboard Setup
 
+## ⚠️ Important: Dashboard IDs are WRONG!
+
+**Common Mistakes:**
+- ❌ Dashboard ID **14927** = JMeter (NOT Synapse!)
+- ❌ Dashboard ID **3387** = Process Top (NOT Synapse!)
+- ✅ **Official Synapse Dashboard** = From Synapse GitHub repo
+
 ## Official Synapse Dashboard
 
-**Dashboard ID:** 3387  
-**Name:** Synapse  
-**URL:** https://grafana.com/grafana/dashboards/3387
+**Source:** Synapse GitHub Repository  
+**File:** `contrib/grafana/synapse.json`  
+**URL:** https://github.com/element-hq/synapse/blob/develop/contrib/grafana/synapse.json
 
-## Import Dashboard
+**Data Source:** Prometheus (required)
 
-### Via Grafana UI
+## Automatic Setup (Recommended)
 
-1. Access Grafana: `http://localhost:3000`
-2. Login with admin credentials
-3. Go to **Dashboards** → **Import**
-4. Enter dashboard ID: `3387`
-5. Click **Load**
-6. Select Prometheus datasource
-7. Click **Import**
+Dashboard is automatically provisioned from `grafana/provisioning/dashboards/synapse.json`
 
-### Via Provisioning (Automated)
+**Restart Grafana to load:**
 
-Dashboard will be automatically loaded from `grafana/provisioning/dashboards/synapse.json`
+```bash
+docker compose restart grafana
+
+# Check logs
+docker logs -f matrix-grafana
+```
+
+**Access Dashboard:**
+
+```
+http://localhost:3000
+→ Dashboards
+→ Matrix folder
+→ Synapse
+```
+
+## Manual Import
+
+If automatic provisioning doesn't work:
+
+1. **Download Dashboard:**
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/element-hq/synapse/develop/contrib/grafana/synapse.json -o synapse-dashboard.json
+   ```
+
+2. **Import to Grafana:**
+   - Access: `http://localhost:3000`
+   - Login with admin credentials
+   - Go to: **Dashboards** → **Import**
+   - Click: **Upload JSON file**
+   - Select: `synapse-dashboard.json`
+   - Select datasource: **Prometheus**
+   - Click: **Import**
 
 ## Dashboard Features
 
-- **Server Stats:** CPU, Memory, Disk usage
-- **Synapse Metrics:**
-  - Active users (DAU, MAU)
-  - Rooms count
-  - Events rate
-  - Federation stats
-- **Database Performance:**
-  - Query time
-  - Connection pool
-  - Transaction rate
-- **Cache Performance:**
-  - Hit rate
-  - Size
-  - Evictions
+### Overview Panels
+- **Active Users:** Daily Active Users (DAU), Monthly Active Users (MAU)
+- **Rooms:** Total rooms, local rooms
+- **Events:** Event rate, event processing time
+- **Federation:** Sent/received events, destination lag
 
-## Alternative Dashboards
+### Performance Metrics
+- **Request Rate:** HTTP requests per second
+- **Response Time:** Request latency (p50, p95, p99)
+- **Database:** Query time, connection pool usage
+- **Cache:** Hit rate, size, evictions
 
-### 1. Synapse (ID: 3387) - Official ✅ RECOMMENDED
-- Most comprehensive
-- Maintained by Matrix.org
-- All Synapse metrics
+### Resource Usage
+- **CPU:** Process CPU usage
+- **Memory:** RSS, heap size
+- **Disk:** Media store size
+- **Network:** Bandwidth usage
 
-### 2. Matrix Synapse (ID: 10046)
-- Alternative community dashboard
-- Different layout
-- Similar metrics
+### Worker Metrics (if workers enabled)
+- Generic worker stats
+- Media worker stats
+- Federation sender stats
 
-### 3. Custom Dashboard
-- Create your own
-- Customize panels
-- Focus on specific metrics
+## Verify Metrics Endpoint
 
-## Prometheus Queries
+**Check Synapse metrics:**
 
-### Active Users
-```promql
-synapse_admin_mau:current
+```bash
+# Synapse main process
+curl http://localhost:9000/metrics
+
+# Should return Prometheus format metrics:
+# synapse_http_server_requests_total{...}
+# synapse_admin_mau:current
+# etc.
 ```
 
-### Request Rate
-```promql
-rate(synapse_http_server_requests_total[5m])
-```
+**Check Prometheus targets:**
 
-### Database Connections
-```promql
-synapse_database_connections
-```
+```bash
+# Access Prometheus
+http://localhost:9090/targets
 
-### Federation Lag
-```promql
-synapse_federation_client_sent_transactions_total
+# Should show:
+# - synapse (localhost:9000) - UP
+# - node-exporter (node-exporter:9100) - UP
 ```
 
 ## Troubleshooting
 
-### Dashboard Not Loading
+### Dashboard Shows "No Data"
 
-**Check Prometheus datasource:**
+**1. Check Prometheus datasource:**
 ```bash
-# Access Grafana
-http://localhost:3000
-
-# Go to: Configuration → Data Sources
-# Verify Prometheus URL: http://prometheus:9090
+# Grafana → Configuration → Data Sources
+# Verify: URL = http://prometheus:9090
+# Click: Save & Test
+# Should show: "Data source is working"
 ```
 
-### No Data Showing
-
-**Verify Synapse metrics:**
+**2. Verify Synapse metrics:**
 ```bash
-# Check Prometheus targets
+# Check if Synapse exposes metrics
+curl http://localhost:9000/metrics | head -20
+
+# Should see metrics like:
+# synapse_http_server_requests_total
+# synapse_admin_mau:current
+```
+
+**3. Check Prometheus scraping:**
+```bash
+# Access Prometheus targets
 http://localhost:9090/targets
 
-# Should show synapse:9000 as UP
+# synapse should be UP
+# If DOWN, check docker-compose.yml prometheus config
 ```
 
-**Check Synapse metrics endpoint:**
+### Metrics Endpoint Not Accessible
+
+**Check Synapse config:**
+
+```yaml
+# synapse/homeserver.yaml
+enable_metrics: true
+metrics_port: 9000
+```
+
+**Restart Synapse:**
 ```bash
-curl http://localhost:9000/metrics
-# Should return Prometheus metrics
+docker compose restart synapse
 ```
 
-### Wrong Dashboard (JMeter 14927)
+### Wrong Dashboard Imported
 
 **Remove wrong dashboard:**
-1. Go to Dashboards
-2. Find JMeter dashboard
-3. Click settings (gear icon)
-4. Delete dashboard
+1. Go to: Dashboards
+2. Find: JMeter (14927) or Process Top (3387)
+3. Click: Settings (gear icon)
+4. Click: Delete
 
 **Import correct dashboard:**
-- Use ID: **3387** (Synapse)
-- NOT 14927 (JMeter)
+- Use file from Synapse repo
+- NOT dashboard IDs from Grafana.com
 
-## Quick Setup
+## Alternative: Community Dashboards
+
+If official dashboard doesn't work, search Grafana.com for "Matrix Synapse":
+
+**Search:** https://grafana.com/grafana/dashboards/?search=synapse
+
+**Note:** Most community dashboards are outdated or use different metrics.
+
+## Custom Panels
+
+### Useful Prometheus Queries
+
+**Active Users (DAU):**
+```promql
+synapse_admin_mau:current{job="synapse"}
+```
+
+**Request Rate:**
+```promql
+rate(synapse_http_server_requests_total[5m])
+```
+
+**Database Query Time (p95):**
+```promql
+histogram_quantile(0.95, rate(synapse_storage_schedule_time_bucket[5m]))
+```
+
+**Federation Lag:**
+```promql
+synapse_federation_client_sent_transactions_total - synapse_federation_client_sent_transactions_total offset 1m
+```
+
+**Cache Hit Rate:**
+```promql
+rate(synapse_util_caches_cache_hits[5m]) / (rate(synapse_util_caches_cache_hits[5m]) + rate(synapse_util_caches_cache_misses[5m]))
+```
+
+## Quick Setup Summary
 
 ```bash
-# Access Grafana
+# 1. Dashboard already provisioned
+# File: grafana/provisioning/dashboards/synapse.json
+
+# 2. Restart Grafana
+docker compose restart grafana
+
+# 3. Access Grafana
 http://localhost:3000
 
-# Login
+# 4. Login
 User: admin
-Password: <from GF_SECURITY_ADMIN_PASSWORD in .env>
+Password: <from .env GF_SECURITY_ADMIN_PASSWORD>
 
-# Import Synapse dashboard
-1. Click "+" → Import
-2. Enter: 3387
-3. Click Load
-4. Select Prometheus
-5. Click Import
+# 5. View Dashboard
+Dashboards → Matrix → Synapse
 
-# Done! Dashboard ready
+# Done!
 ```
+
+## Resources
+
+- **Official Dashboard:** https://github.com/element-hq/synapse/blob/develop/contrib/grafana/synapse.json
+- **Synapse Metrics Docs:** https://element-hq.github.io/synapse/latest/metrics-howto.html
+- **Prometheus Docs:** https://prometheus.io/docs/
+- **Grafana Docs:** https://grafana.com/docs/
+
+---
+
+**Use the OFFICIAL dashboard from Synapse repo, NOT random IDs from Grafana.com!** ✅
