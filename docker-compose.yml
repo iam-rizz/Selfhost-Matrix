@@ -250,16 +250,9 @@ services:
     image: coturn/coturn:latest
     container_name: matrix-coturn
     restart: unless-stopped
-    ports:
-      - "3478:3478/tcp"
-      - "3478:3478/udp"
-      - "5349:5349/tcp"
-      - "5349:5349/udp"
-      - "${TURN_MIN_PORT:-49152}-${TURN_MAX_PORT:-65535}:${TURN_MIN_PORT:-49152}-${TURN_MAX_PORT:-65535}/udp"
+    network_mode: host # Use host network to avoid port mapping overhead
     volumes:
       - ./coturn/turnserver.conf:/etc/coturn/turnserver.conf:ro
-    networks:
-      - matrix-net
     deploy:
       resources:
         limits:
