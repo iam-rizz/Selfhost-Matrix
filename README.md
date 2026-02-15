@@ -1,380 +1,836 @@
-# 🏠 Matrix Server — Production-Ready Template
+# 🚀 Matrix Homeserver - Complete Self-Hosted Solution
 
-A complete, production-grade [Matrix](https://matrix.org) homeserver deployment template with **Synapse**, **Element Web**, monitoring, security hardening, and automated operations.
+[![Matrix](https://img.shields.io/badge/Matrix-000000?style=for-the-badge&logo=Matrix&logoColor=white)](https://matrix.org)
+[![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
+[![Traefik](https://img.shields.io/badge/Traefik-24A1C1?style=for-the-badge&logo=traefikproxy&logoColor=white)](https://traefik.io/)
 
-## 🧩 Architecture
+Production-ready Matrix homeserver deployment with Synapse, Element Web, Jitsi Meet, monitoring stack, and complete automation.
 
-```
-                    Internet (80/443/8448)
-                            ↓
-                    ┌───────────────┐
-                    │   Traefik     │  ← Auto SSL, Load Balancer
-                    │ (Reverse Proxy)│    Federation (8448)
-                    └───────┬───────┘
-                            │
-        ┌───────────────────┼───────────────────┐
-        │                   │                   │
-┌───────┴────────┐  ┌───────┴────────┐  ┌──────┴──────┐
-│  Synapse Main  │  │ Synapse Workers│  │   Element   │
-│  + 3 Workers   │  │ (Generic,Media,│  │   Web       │
-│                │  │  Fed Sender)   │  │             │
-└───────┬────────┘  └───────┬────────┘  └─────────────┘
-        │                   │
-        └───────────┬───────┘
-                    │
-    ┌───────────────┼───────────────┐
-    │               │               │
-┌───┴────┐  ┌───────┴──────┐  ┌────┴─────┐
-│Postgres│  │    Redis     │  │  Coturn  │
-│  SQL   │  │   (Workers)  │  │  (TURN)  │
-└────────┘  └──────────────┘  └──────────┘
+## 📋 Table of Contents
 
-Additional Services:
-• Jitsi Meet (4 containers): web, prosody, jicofo, jvb
-• Sliding Sync Proxy: 10x faster client sync
-• Dimension: Integration manager
-• Monitoring: Prometheus, Grafana, Alertmanager, Node Exporter
-• Management: pgAdmin, Synapse Admin
-```
+- [Features](#-features)
+- [Architecture](#-architecture)
+- [Quick Start](#-quick-start)
+- [Detailed Setup](#-detailed-setup)
+- [Services](#-services)
+- [Configuration](#-configuration)
+- [Monitoring](#-monitoring)
+- [Backup & Restore](#-backup--restore)
+- [Troubleshooting](#-troubleshooting)
+- [Security](#-security)
+- [Maintenance](#-maintenance)
 
-**Total: 22 services, 21 running containers**
+---
 
-**Security:** Traefik auto-SSL + Fail2ban + UFW Firewall + Rate Limiting  
-**Operations:** Automated backups + Health checks + Resource monitoring
-
-## 📋 Services
+## ✨ Features
 
 ### Core Services
+- **Matrix Synapse** - Homeserver with worker support (generic, media, federation)
+- **Element Web** - Modern web client
+- **Sliding Sync** - Fast sync for Element X mobile
+- **Dimension** - Integration manager for bots and bridges
+- **Synapse Admin** - Web-based admin interface
 
-| Service | Container | Port | Description |
-|---------|-----------|------|-------------|
-| **Traefik** | `matrix-traefik` | 80, 443, 8448 | Reverse proxy + Auto SSL |
-| **Synapse** | `matrix-synapse` | 8008 | Matrix homeserver (main) |
-| **Synapse Worker (Generic)** | `matrix-synapse-worker-generic` | 8009 | Client/federation requests |
-| **Synapse Worker (Media)** | `matrix-synapse-worker-media` | 8010 | Media uploads/downloads |
-| **Synapse Worker (Fed Sender)** | `matrix-synapse-worker-federation-sender` | - | Outbound federation |
-| **Element** | `matrix-element` | 8080 | Web client |
-| **Dimension** | `matrix-dimension` | 8184 | Integration manager |
-| **Sliding Sync** | `matrix-sliding-sync` | 8009 | Fast sync proxy |
-
-### Video Conferencing
-
-| Service | Container | Port | Description |
-|---------|-----------|------|-------------|
-| **Jitsi Web** | `matrix-jitsi-web` | 80 | Jitsi web UI |
-| **Jitsi Prosody** | `matrix-jitsi-prosody` | 5280 | XMPP server |
-| **Jitsi Jicofo** | `matrix-jitsi-jicofo` | - | Conference focus |
-| **Jitsi JVB** | `matrix-jitsi-jvb` | 10000/udp | Video bridge |
+### Communication
+- **Jitsi Meet** - Self-hosted video conferencing
+- **Coturn** - TURN/STUN server for VoIP (optimized, no memory leak!)
 
 ### Infrastructure
+- **Traefik v3.6** - Reverse proxy with automatic SSL (Let's Encrypt)
+- **PostgreSQL 15** - Database with optimized settings
+- **Redis 7** - Cache and session storage
 
-| Service | Container | Port | Description |
-|---------|-----------|------|-------------|
-| **PostgreSQL** | `matrix-postgres` | 5432 | Database |
-| **Redis** | `matrix-redis` | 6379 | Cache + worker coordination |
-| **Coturn** | `matrix-coturn` | 3478, 5349 | TURN/STUN server |
+### Monitoring & Alerts
+- **Prometheus** - Metrics collection
+- **Grafana** - Visualization dashboards
+- **Alertmanager** - Alert routing
+- **Node Exporter** - System metrics
+- **pgAdmin** - PostgreSQL management
 
-### Monitoring & Management
+### Automation
+- **Automated Setup** - One-command deployment
+- **SSL Certificates** - Automatic renewal
+- **Backup Scripts** - Encrypted backups with GPG
+- **Health Checks** - Container health monitoring
 
-| Service | Container | Port | Description |
-|---------|-----------|------|-------------|
-| **Prometheus** | `matrix-prometheus` | 9090 | Metrics collection |
-| **Grafana** | `matrix-grafana` | 3000 | Dashboards |
-| **Alertmanager** | `matrix-alertmanager` | 9093 | Alert routing |
-| **Node Exporter** | `matrix-node-exporter` | 9100 | System metrics |
-| **pgAdmin** | `matrix-pgadmin` | 5050 | PostgreSQL manager |
-| **Synapse Admin** | `matrix-synapse-admin` | 8888 | Admin panel |
+---
+
+## 🏗️ Architecture
+
+```mermaid
+graph TB
+    Internet[Internet] --> Traefik[Traefik v3.6<br/>Reverse Proxy + SSL]
+    
+    Traefik --> Element[Element Web<br/>:443]
+    Traefik --> Synapse[Synapse<br/>:8008]
+    Traefik --> Dimension[Dimension<br/>:8184]
+    Traefik --> Jitsi[Jitsi Meet<br/>:443]
+    Traefik --> SynapseAdmin[Synapse Admin<br/>:8888]
+    
+    Synapse --> Workers[Workers]
+    Workers --> GenericWorker[Generic Worker]
+    Workers --> MediaWorker[Media Worker]
+    Workers --> FederationWorker[Federation Sender]
+    
+    Synapse --> PostgreSQL[(PostgreSQL 15)]
+    Synapse --> Redis[(Redis 7)]
+    
+    Synapse --> SlidingSync[Sliding Sync Proxy]
+    SlidingSync --> PostgreSQL
+    
+    Synapse --> Coturn[Coturn TURN/STUN<br/>Host Network Mode]
+    
+    Prometheus[Prometheus] --> Synapse
+    Prometheus --> NodeExporter[Node Exporter]
+    Prometheus --> PostgreSQL
+    
+    Grafana[Grafana] --> Prometheus
+    Alertmanager[Alertmanager] --> Prometheus
+```
+
+**Key Design Decisions:**
+- **Traefik** handles all HTTPS traffic with automatic SSL
+- **Coturn** uses `network_mode: host` to avoid 16GB memory leak
+- **Workers** distribute Synapse load across multiple processes
+- **Monitoring** stack provides full observability
+
+---
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
-- **Server**: Linux (Ubuntu/Debian recommended), 2+ GB RAM, 20+ GB disk
-- **Docker** & **Docker Compose** v2+
-- **Domain** with DNS A records for 3 subdomains pointing to your server
+- Ubuntu 20.04+ / Debian 11+ (or any Linux with Docker)
+- Domain name with DNS configured
+- Minimum 4GB RAM, 2 CPU cores, 20GB disk
+- Ports 80, 443, 3478, 5349, 49152-50151 open
 
-### 1. Clone & Configure
+### One-Command Deployment
 
 ```bash
+# Clone repository
 git clone https://github.com/iam-rizz/Selfhost-Matrix.git
 cd Selfhost-Matrix
 
-# Create your configuration
+# Copy and configure environment
 cp .env.example .env
-nano .env  # Fill in your domain, passwords, and secrets
+nano .env  # Edit with your settings
+
+# Run setup (creates directories, generates secrets, configures services)
+./setup.sh
+
+# Start all services
+docker compose up -d
+
+# Check status
+docker compose ps
 ```
 
-### 2. Generate Secrets
+**That's it!** Your Matrix server is now running at `https://your-domain.com`
+
+---
+
+## 📖 Detailed Setup
+
+### Step 1: Server Preparation
 
 ```bash
-# Generate random secrets for .env
-echo "SYNAPSE_REGISTRATION_SHARED_SECRET=$(openssl rand -hex 32)"
-echo "SYNAPSE_MACAROON_SECRET_KEY=$(openssl rand -hex 32)"
-echo "SYNAPSE_FORM_SECRET=$(openssl rand -hex 32)"
-echo "TURN_SECRET=$(openssl rand -hex 32)"
-echo "DIMENSION_API_SECRET=$(openssl rand -hex 16)"
-echo "REDIS_PASSWORD=$(openssl rand -hex 16)"
+# Update system
+sudo apt update && sudo apt upgrade -y
 
-# Generate Traefik dashboard password (htpasswd format)
+# Install Docker
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+sudo usermod -aG docker $USER
+newgrp docker
+
+# Install Docker Compose
+sudo apt install docker-compose-plugin -y
+
+# Verify installation
+docker --version
+docker compose version
+```
+
+### Step 2: DNS Configuration
+
+Configure DNS records for your domain:
+
+| Type | Name | Value | TTL |
+|------|------|-------|-----|
+| A | `@` | `YOUR_SERVER_IP` | 300 |
+| A | `element` | `YOUR_SERVER_IP` | 300 |
+| A | `dimension` | `YOUR_SERVER_IP` | 300 |
+| A | `meet` | `YOUR_SERVER_IP` | 300 |
+| A | `traefik` | `YOUR_SERVER_IP` | 300 |
+| SRV | `_matrix._tcp` | `10 0 8448 your-domain.com` | 300 |
+
+**For root domain Synapse:**
+- Set `USE_ROOT_DOMAIN=true` in `.env`
+- Synapse will be at `https://your-domain.com`
+
+**For subdomain Synapse:**
+- Set `USE_ROOT_DOMAIN=false` in `.env`
+- Synapse will be at `https://chat.your-domain.com`
+
+### Step 3: Environment Configuration
+
+```bash
+# Copy example config
+cp .env.example .env
+
+# Edit configuration
+nano .env
+```
+
+**Required Settings:**
+
+```bash
+# Domain
+DOMAIN=your-domain.com
+USE_ROOT_DOMAIN=true  # or false for subdomain
+
+# Email for SSL certificates
+ACME_EMAIL=admin@your-domain.com
+
+# PostgreSQL (auto-generated or set manually)
+POSTGRES_PASSWORD=<strong-password>
+
+# Redis
+REDIS_PASSWORD=<strong-password>
+
+# Synapse secrets (auto-generated by setup.sh)
+SYNAPSE_REGISTRATION_SHARED_SECRET=<auto-generated>
+SYNAPSE_MACAROON_SECRET_KEY=<auto-generated>
+
+# Traefik Dashboard
+TRAEFIK_DASHBOARD_USER=admin
+TRAEFIK_DASHBOARD_PASSWORD=<bcrypt-hash>  # Generate with scripts/generate-traefik-password.sh
+```
+
+**Generate Traefik Password:**
+
+```bash
 ./scripts/generate-traefik-password.sh
-# Follow the prompts and copy the output to your .env file
+# Enter password when prompted
+# Copy the bcrypt hash to .env
 ```
 
-**Important:** Traefik dashboard password must be in **htpasswd hash format**, not plain text. See [docs/TRAEFIK_AUTH.md](docs/TRAEFIK_AUTH.md) for details.
-
-### 3. Run Setup
+### Step 4: Run Setup Script
 
 ```bash
-chmod +x setup.sh
-sudo ./setup.sh
+./setup.sh
 ```
 
-The interactive setup script will:
-- ✅ Validate your `.env` configuration
-- ✅ Create data directories (postgres, redis, synapse, traefik, jitsi, workers, etc.)
-- ✅ Substitute variables into all config templates
-- ✅ Generate Synapse signing key
-- ✅ Show Traefik auto-SSL information
-- ✅ Optionally configure Fail2ban & UFW firewall
-- ✅ Set up cron jobs for backup & monitoring
+**What setup.sh does:**
+1. ✅ Creates all required directories with correct permissions
+2. ✅ Generates random secrets for all services
+3. ✅ Substitutes environment variables in config files
+4. ✅ Fixes permissions for Prometheus, Grafana, pgAdmin, Dimension
+5. ✅ Validates configuration
+6. ✅ Shows deployment summary
 
-**Note:** Traefik will automatically request SSL certificates from Let's Encrypt when you start the services. No manual certbot needed!
-
-### 4. Create Admin User
+### Step 5: Start Services
 
 ```bash
+# Start all services
+docker compose up -d
+
+# Watch logs
+docker compose logs -f
+
+# Check status
+docker compose ps
+```
+
+### Step 6: Create Admin User
+
+```bash
+# Register first user (admin)
 docker exec -it matrix-synapse register_new_matrix_user \
-    -c /data/homeserver.yaml http://localhost:8008 -a
+    -c /data/homeserver.yaml \
+    http://localhost:8008
+
+# Follow prompts:
+# Username: admin
+# Password: <your-password>
+# Make admin: yes
 ```
 
-### 5.## Verify Deployment
+### Step 7: Verify Deployment
+
+**Check Federation:**
+```bash
+curl https://federationtester.matrix.org/api/report?server_name=your-domain.com
+```
+
+**Access Services:**
+- Element Web: `https://element.your-domain.com`
+- Synapse Admin: `http://localhost:8888`
+- Dimension: `https://dimension.your-domain.com`
+- Jitsi Meet: `https://meet.your-domain.com`
+- Traefik Dashboard: `https://traefik.your-domain.com/dashboard/`
+- Grafana: `http://localhost:3000`
+- Prometheus: `http://localhost:9090`
+- pgAdmin: `http://localhost:5050`
+
+---
+
+## 🔧 Services
+
+### Matrix Synapse
+
+**Main Process:**
+- Handles client API, federation, media
+- Delegates work to workers
+
+**Workers:**
+- `generic_worker` - Client sync, typing, presence
+- `media_worker` - Media upload/download
+- `federation_sender` - Outbound federation
+
+**Configuration:**
+- File: `synapse/homeserver.yaml`
+- Logs: `synapse-data/logs/`
+- Database: PostgreSQL `synapse` database
+
+### Element Web
+
+Modern Matrix web client with custom branding support.
+
+**Configuration:**
+- File: `element/config.json`
+- Customization: `element/config.json` (themes, branding)
+
+### Coturn (TURN/STUN)
+
+**Optimized Configuration:**
+- ✅ Host network mode (no memory leak!)
+- ✅ 1000 ports (49152-50151) instead of 16K
+- ✅ Connection limits (10 per user, 100 total)
+- ✅ Bandwidth limit (3 Mbps)
+- ✅ No verbose logging
+
+**Memory Usage:**
+- Expected: 50-100MB
+- Max limit: 256MB (safety)
+
+**Configuration:**
+- File: `coturn/turnserver.conf`
+- Ports: 3478, 5349, 49152-50151
+
+### Traefik
+
+**Features:**
+- Automatic SSL with Let's Encrypt
+- HTTP to HTTPS redirect
+- Dashboard with authentication
+- Docker provider (auto-discovery)
+
+**Configuration:**
+- Static: `traefik/traefik.yml`
+- Dynamic: Docker labels in `docker-compose.yml`
+
+**Dashboard Access:**
+```bash
+# URL: https://traefik.your-domain.com/dashboard/
+# User: From TRAEFIK_DASHBOARD_USER
+# Password: From TRAEFIK_DASHBOARD_PASSWORD
+```
+
+### Monitoring Stack
+
+**Prometheus:**
+- Scrapes metrics from Synapse, Node Exporter, PostgreSQL
+- Retention: 15 days
+- Port: 9090
+
+**Grafana:**
+- Pre-configured dashboards
+- User: `admin`
+- Password: From `GF_SECURITY_ADMIN_PASSWORD`
+- Port: 3000
+
+**Alertmanager:**
+- Alert routing and notifications
+- Port: 9093
+
+---
+
+## ⚙️ Configuration
+
+### Domain Configuration
+
+**Root Domain Mode** (`USE_ROOT_DOMAIN=true`):
+```
+Synapse: https://your-domain.com
+Element: https://element.your-domain.com
+Dimension: https://dimension.your-domain.com
+```
+
+**Subdomain Mode** (`USE_ROOT_DOMAIN=false`):
+```
+Synapse: https://chat.your-domain.com
+Element: https://element.your-domain.com
+Dimension: https://dimension.your-domain.com
+```
+
+### SSL Certificates
+
+Traefik automatically obtains and renews Let's Encrypt certificates.
+
+**Certificate Storage:**
+```
+traefik-data/letsencrypt/acme.json
+```
+
+**Force Renewal:**
+```bash
+# Remove acme.json
+rm traefik-data/letsencrypt/acme.json
+
+# Restart Traefik
+docker compose restart traefik
+```
+
+### Synapse Configuration
+
+**Enable Registration:**
+```yaml
+# synapse/homeserver.yaml
+enable_registration: true
+registration_shared_secret: "your-secret"
+```
+
+**Disable Registration:**
+```yaml
+enable_registration: false
+```
+
+**Max Upload Size:**
+```yaml
+max_upload_size: 200M  # Adjust in .env
+```
+
+### Worker Configuration
+
+Workers are automatically configured by `setup.sh`.
+
+**Scaling Workers:**
+
+Edit `docker-compose.yml`:
+```yaml
+synapse-worker-generic:
+  deploy:
+    replicas: 2  # Scale to 2 instances
+```
+
+---
+
+## 📊 Monitoring
+
+### Grafana Dashboards
+
+**Access:** `http://localhost:3000`
+
+**Pre-configured Dashboards:**
+1. **Synapse Overview** - Requests, users, rooms
+2. **System Metrics** - CPU, RAM, disk, network
+3. **PostgreSQL** - Database performance
+4. **Redis** - Cache hit rates
+
+### Prometheus Queries
+
+**Active Users:**
+```promql
+synapse_admin_mau:current
+```
+
+**Request Rate:**
+```promql
+rate(synapse_http_server_requests_total[5m])
+```
+
+**Database Connections:**
+```promql
+synapse_database_connections
+```
+
+### Logs
+
+**View All Logs:**
+```bash
+docker compose logs -f
+```
+
+**Service-Specific:**
+```bash
+docker logs -f matrix-synapse
+docker logs -f matrix-traefik
+docker logs -f matrix-coturn
+```
+
+**Synapse Logs:**
+```bash
+tail -f synapse-data/logs/homeserver.log
+```
+
+---
+
+## 💾 Backup & Restore
+
+### Automated Backups
+
+**Script:** `scripts/backup.sh`
+
+**Features:**
+- PostgreSQL dump (synapse + syncv3 databases)
+- Synapse media files
+- Configuration files
+- GPG encryption
+- Retention policy (7 days default)
+
+**Setup:**
+```bash
+# Configure GPG key
+GPG_RECIPIENT=your-gpg-key-id
+
+# Run backup
+./scripts/backup.sh
+
+# Schedule with cron
+crontab -e
+# Add: 0 2 * * * /path/to/Selfhost-Matrix/scripts/backup.sh
+```
+
+### Manual Backup
 
 ```bash
-# Check all containers are running
+# Backup PostgreSQL
+docker exec matrix-postgres pg_dumpall -U synapse > backup.sql
+
+# Backup media
+tar -czf media-backup.tar.gz synapse-data/media_store/
+
+# Backup configs
+tar -czf config-backup.tar.gz .env synapse/ element/ dimension/
+```
+
+### Restore
+
+```bash
+# Restore PostgreSQL
+docker exec -i matrix-postgres psql -U synapse < backup.sql
+
+# Restore media
+tar -xzf media-backup.tar.gz -C synapse-data/
+
+# Restart services
+docker compose restart
+```
+
+---
+
+## 🔍 Troubleshooting
+
+### Common Issues
+
+#### 1. Coturn Memory Leak (16GB RAM)
+
+**Symptoms:**
+- Coturn consuming all system memory
+- Server becomes unresponsive
+
+**Solution:**
+```bash
+# Already fixed in latest version with network_mode: host
+git pull origin main
+docker compose up -d coturn
+
+# Verify memory usage (should be < 100MB)
+docker stats matrix-coturn
+```
+
+**Root Cause:** Port mapping overhead in bridge mode.
+
+#### 2. SSL Certificate Not Generating
+
+**Check:**
+```bash
+# View Traefik logs
+docker logs matrix-traefik
+
+# Check DNS
+dig your-domain.com
+
+# Verify ports 80 and 443 are open
+sudo ufw status
+```
+
+**Solution:**
+```bash
+# Ensure DNS points to server
+# Wait 5-10 minutes for DNS propagation
+# Check Traefik logs for ACME errors
+```
+
+#### 3. Prometheus Permission Denied
+
+**Error:**
+```
+level=error msg="Error opening memory series storage: lock DB directory: permission denied"
+```
+
+**Solution:**
+```bash
+chmod -R 777 prometheus-data
+docker compose restart prometheus
+```
+
+#### 4. Dimension Access Token Invalid
+
+**Error:**
+```
+M_UNKNOWN_TOKEN: Invalid access token passed
+```
+
+**Solution:**
+```bash
+# Create dimension user
+docker exec -it matrix-synapse register_new_matrix_user \
+    -c /data/homeserver.yaml http://localhost:8008
+# Username: dimension
+# Password: <password>
+# Admin: no
+
+# Get access token
+curl -X POST "http://localhost:8008/_matrix/client/r0/login" \
+    -H "Content-Type: application/json" \
+    -d '{"type":"m.login.password","user":"dimension","password":"<password>"}'
+
+# Copy access_token to .env
+nano .env
+# DIMENSION_ACCESS_TOKEN=<token>
+
+# Regenerate config
+./setup.sh
+
+# Restart
+docker compose up -d dimension
+```
+
+#### 5. Sliding Sync Database Missing
+
+**Error:**
+```
+panic: pq: database "syncv3" does not exist
+```
+
+**Solution:**
+```bash
+# Create database
+docker exec -it matrix-postgres psql -U synapse -c "CREATE DATABASE syncv3;"
+docker exec -it matrix-postgres psql -U synapse -c "GRANT ALL PRIVILEGES ON DATABASE syncv3 TO synapse;"
+
+# Restart
+docker compose up -d sliding-sync
+```
+
+### Health Checks
+
+```bash
+# Check all containers
 docker compose ps
 
-# Check Synapse health
-curl http://localhost:8008/health
+# Check specific service
+docker compose ps synapse
 
-# View logs
-docker compose logs -f synapse
+# View resource usage
+docker stats
+
+# Check disk space
+df -h
 ```
 
-### Access Admin Interfaces
+---
 
-All admin interfaces are localhost-only. Use SSH tunnel for remote access:
+## 🔒 Security
+
+### Firewall Configuration
 
 ```bash
-# SSH tunnel example (from your local machine)
-ssh -L 8888:localhost:8888 -L 3000:localhost:3000 -L 5050:localhost:5050 user@your-server
+# Install UFW
+sudo apt install ufw -y
+
+# Default policies
+sudo ufw default deny incoming
+sudo ufw default allow outgoing
+
+# Allow SSH
+sudo ufw allow 22/tcp
+
+# Allow HTTP/HTTPS (Traefik)
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+
+# Allow Coturn
+sudo ufw allow 3478/tcp
+sudo ufw allow 3478/udp
+sudo ufw allow 5349/tcp
+sudo ufw allow 5349/udp
+sudo ufw allow 49152:50151/udp
+
+# Enable firewall
+sudo ufw enable
 ```
 
-Then access:
-- **Synapse Admin**: `http://localhost:8888`
-- **Grafana**: `http://localhost:3000` (user: admin, password from `.env`)
-- **pgAdmin**: `http://localhost:5050` (PostgreSQL manager)
-- **Prometheus**: `http://localhost:9090`
+### Coturn Security (Host Mode)
 
-#### pgAdmin Setup
+**Why Host Mode is Safe:**
+1. ✅ Process isolation maintained
+2. ✅ Filesystem isolation maintained
+3. ✅ Resource limits enforced (256MB)
+4. ✅ UFW firewall protection
+5. ✅ denied-peer-ip blocks private IPs
+6. ✅ Connection quotas prevent abuse
 
-1. Login with credentials from `.env`:
-   - Email: `PGADMIN_DEFAULT_EMAIL`
-   - Password: `PGADMIN_DEFAULT_PASSWORD`
+**Security Features in Config:**
+```conf
+# Block private IP ranges
+denied-peer-ip=10.0.0.0-10.255.255.255
+denied-peer-ip=192.168.0.0-192.168.255.255
 
-2. Add PostgreSQL server:
-   - Right-click "Servers" → "Register" → "Server"
-   - **General** tab: Name = `Matrix PostgreSQL`
-   - **Connection** tab:
-     - Host: `matrix-postgres`
-     - Port: `5432`
-     - Username: `synapse` (from `.env`)
-     - Password: `POSTGRES_PASSWORD` (from `.env`)
-     - Save password: ✓
-# Test Federation
-curl -s https://chat.YOUR_DOMAIN:8448/_matrix/federation/v1/version | jq .
+# Limit connections
+user-quota=10
+total-quota=100
 
-# Federation Tester
-# Visit: https://federationtester.matrix.org/api/report?server_name=YOUR_DOMAIN
-
-## 📁 Project Structure
-
-```
-├── .env.example                    # Configuration template
-├── .gitignore                      # Ignore secrets & data
-├── docker-compose.yml              # All 22 services
-├── setup.sh                        # Interactive bootstrap
-├── README.md                       # This file
-│
-├── synapse/
-│   ├── homeserver.yaml             # Synapse config (worker mode enabled)
-│   └── log.config                  # Logging (rotating, 10MB)
-│
-├── workers/
-│   ├── generic_worker.yaml         # Client/federation worker
-│   ├── media_worker.yaml           # Media upload/download worker
-│   ├── federation_sender.yaml      # Outbound federation worker
-│   └── *_log.yaml                  # Worker log configs
-│
-├── traefik/
-│   └── traefik.yml                 # Auto SSL + routing config
-│
-├── element/
-│   └── config.json                 # Element Web config (Sliding Sync enabled)
-│
-├── dimension/
-│   └── config.json                 # Dimension integration mgr
-│
-├── coturn/
-│   └── turnserver.conf             # TURN/STUN server
-│
-├── postgres/
-│   └── init-syncv3.sql             # Sliding Sync database init
-│
-├── nginx/                          # Legacy configs (optional, for migration)
-│   ├── matrix-synapse.conf
-│   ├── matrix-element.conf
-│   └── matrix-dimension.conf
-│
-├── prometheus/
-│   ├── prometheus.yml              # Scrape config (includes Traefik)
-│   └── alert_rules.yml             # Alert definitions
-│
-├── alertmanager/
-│   └── alertmanager.yml            # Alert routing
-│
-├── grafana/
-│   └── provisioning/
-│       └── datasources/
-│           └── prometheus.yml      # Auto-provisioned datasource
-│
-├── fail2ban/
-│   ├── filter.d/matrix-synapse.conf
-│   ├── jail.d/matrix-synapse.conf
-│   └── action.d/telegram.conf      # Telegram ban notifications
-│
-└── scripts/
-    ├── backup-postgres.sh          # Daily encrypted backups
-    ├── offsite-backup.sh           # Upload to S3/B2/Wasabi
-    ├── health-check.sh             # Service health monitoring
-    └── monitor-resources.sh        # RAM/disk alerting
+# Bandwidth limit
+max-bps=3000000
 ```
 
-## 🔒 Security Features
+### SSL/TLS
 
-- **TLS 1.2/1.3 only** with strong cipher suites
-- **HSTS** with preload, **CSP**, **X-Frame-Options**, **X-Content-Type-Options**
-- **OCSP Stapling** for SSL
-- **Fail2ban** with Synapse login filter (5 retries → 1hr ban)
-- **Telegram notifications** on ban/unban events
-- **Rate limiting** on login (5/min), registration (3/min), messages (5/sec)
-- **Public registration disabled** by default
-- **UFW firewall** — only 80, 443, 8448, SSH, TURN ports exposed
-- **All internal ports** bound to `127.0.0.1` — not publicly accessible
-- **Encrypted backups** with GPG
+- ✅ Automatic HTTPS with Let's Encrypt
+- ✅ TLS 1.2+ only (no TLS 1.0/1.1)
+- ✅ Strong cipher suites
+- ✅ HSTS enabled
 
-## 📊 Monitoring & Alerts
+### Regular Updates
 
-### Prometheus Alert Rules
+```bash
+# Update Docker images
+docker compose pull
 
-| Alert | Condition | Severity |
-|---|---|---|
-| SynapseDown | Unreachable > 1m | 🔴 Critical |
-| SynapseHighCPU | CPU > 80% for 5m | 🟡 Warning |
-| SynapseHighMemory | RAM > 2GB for 5m | 🟡 Warning |
-| FederationErrors | High failure rate 10m | 🟡 Warning |
-| HighDiskUsage | < 15% free | 🟡 Warning |
-| HighMemoryUsage | > 85% used | 🟡 Warning |
-| NodeExporterDown | Unreachable > 2m | 🔴 Critical |
+# Restart with new images
+docker compose up -d
 
-### Cron Jobs
+# Clean old images
+docker image prune -a
+```
 
-| Schedule | Script | Purpose |
-|---|---|---|
-| `0 3 * * *` | `backup-postgres.sh` | Daily DB backup + GPG encrypt |
-| `*/5 * * * *` | `health-check.sh` | Container + API health check |
-| `*/10 * * * *` | `monitor-resources.sh` | RAM/disk threshold alerts |
+---
 
 ## 🛠️ Maintenance
 
-### Backup & Restore
+### Regular Tasks
+
+**Daily:**
+- Monitor Grafana dashboards
+- Check disk space
+- Review error logs
+
+**Weekly:**
+- Update Docker images
+- Review backup logs
+- Check SSL certificate expiry
+
+**Monthly:**
+- Database vacuum
+- Clean old media files
+- Review user activity
+
+### Database Maintenance
 
 ```bash
-# Manual backup
-./scripts/backup-postgres.sh
+# Vacuum PostgreSQL
+docker exec matrix-postgres vacuumdb -U synapse -d synapse -v
 
-# Restore from encrypted backup
-gpg --decrypt backups/synapse_db_YYYYMMDD_HHMMSS.sql.gz.gpg | gunzip | \
-    docker exec -i matrix-postgres psql -U synapse -d synapse
+# Analyze tables
+docker exec matrix-postgres psql -U synapse -d synapse -c "ANALYZE;"
 ```
 
-### Offsite Backup with rclone
+### Media Cleanup
 
 ```bash
-# Install rclone
-apt install rclone -y
-
-# Configure remote (S3, Backblaze B2, Wasabi, etc.)
-rclone config
-
-# Update .env with remote name
-RCLONE_REMOTE=offsite
-RCLONE_PATH=matrix-backup
-
-# Test upload
-./scripts/offsite-backup.sh
-
-# Add to cron (daily at 4 AM)
-0 4 * * * /path/to/scripts/offsite-backup.sh >> /path/to/logs/offsite.log 2>&1
+# Remove old cached remote media (older than 30 days)
+docker exec matrix-synapse \
+    curl -X POST "http://localhost:8008/_synapse/admin/v1/media/delete?before_ts=$(date -d '30 days ago' +%s)000" \
+    -H "Authorization: Bearer <admin-token>"
 ```
 
-### Update Services
+### Scaling
 
-```bash
-docker compose pull
-docker compose up -d
+**Increase Workers:**
+```yaml
+# docker-compose.yml
+synapse-worker-generic:
+  deploy:
+    replicas: 3  # Scale to 3 instances
 ```
 
-### View Logs
-
-```bash
-docker compose logs -f synapse        # Synapse logs
-docker compose logs -f postgres       # PostgreSQL logs
-sudo fail2ban-client status matrix-synapse  # Fail2ban status
+**Increase PostgreSQL Resources:**
+```yaml
+postgres:
+  command:
+    - "postgres"
+    - "-c"
+    - "shared_buffers=512MB"  # Increase from 256MB
+    - "-c"
+    - "effective_cache_size=1GB"  # Increase from 512MB
 ```
 
-### Dimension Setup
+---
 
-After Synapse is running, create a bot user for Dimension:
+## 📚 Additional Documentation
 
-```bash
-# Register the dimension user
-docker exec -it matrix-synapse register_new_matrix_user \
-    -c /data/homeserver.yaml http://localhost:8008
+- [Traefik Dashboard Authentication](docs/TRAEFIK_AUTH.md)
+- [Coturn Memory Fix Guide](docs/COTURN_MEMORY_FIX.md)
+- [Root Domain Support](docs/ROOT_DOMAIN.md)
 
-# Get access token (login as the dimension user)
-curl -s -X POST "http://localhost:8008/_matrix/client/r0/login" \
-    -H "Content-Type: application/json" \
-    -d '{"type":"m.login.password","user":"dimension","password":"YOUR_PASSWORD"}' \
-    | jq -r '.access_token'
+---
 
-# Update DIMENSION_ACCESS_TOKEN in .env, re-run setup.sh, restart dimension
-docker compose restart dimension
-```
+## 🤝 Contributing
 
-## 📚 Documentation
+Contributions welcome! Please:
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Submit a pull request
 
-### Core Guides
-- **[Monitoring Guide](docs/MONITORING.md)** — Prometheus, Grafana, Alertmanager setup & queries
-- **[Matrix Features](docs/MATRIX_FEATURES.md)** — Complete guide to Matrix capabilities & features
-- **[Debugging Guide](docs/DEBUGGING.md)** — Start services one by one, troubleshooting & health checks
+---
 
-### Advanced Features
-- **[Traefik Reverse Proxy](docs/TRAEFIK.md)** — Auto SSL, load balancing, dashboard & troubleshooting
-- **[Sliding Sync Proxy](docs/SLIDING_SYNC.md)** — 10x faster sync for mobile clients
-- **[Jitsi Meet](docs/JITSI.md)** — Self-hosted video conferencing setup & configuration
-- **[Synapse Workers](docs/WORKERS.md)** — Horizontal scaling for high-traffic servers
-- **[Fail2ban Notifications](docs/FAIL2BAN_NOTIFICATIONS.md)** — Enhanced Telegram alerts with geolocation
+## 📄 License
 
-## 📜 License
+MIT License - See LICENSE file for details
 
-MIT
+---
+
+## 🙏 Acknowledgments
+
+- [Matrix.org](https://matrix.org) - Decentralized communication protocol
+- [Synapse](https://github.com/matrix-org/synapse) - Matrix homeserver
+- [Element](https://element.io) - Matrix client
+- [Traefik](https://traefik.io) - Modern reverse proxy
+- [Jitsi](https://jitsi.org) - Video conferencing
+
+---
+
+## 📞 Support
+
+- **Issues:** [GitHub Issues](https://github.com/iam-rizz/Selfhost-Matrix/issues)
+- **Matrix Room:** `#selfhost-matrix:your-domain.com`
+- **Documentation:** [Wiki](https://github.com/iam-rizz/Selfhost-Matrix/wiki)
+
+---
+
+**Made with ❤️ for the Matrix community**
