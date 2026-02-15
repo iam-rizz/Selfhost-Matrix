@@ -1,9 +1,10 @@
 #!/bin/bash
 ###############################################################################
-#  Offsite Backup with rclone                                                 #
-#  Uploads encrypted backups to remote storage (S3, B2, Wasabi, etc.)         #
-#  Requires: rclone configured with a remote named 'offsite'                  #
-#  Cron: 0 4 * * * /path/to/scripts/offsite-backup.sh                        #
+#  Offsite Backup with Telegram + rclone                                     #
+#  1. Send backup files to Telegram (reliable, instant)                      #
+#  2. Upload to cloud storage via rclone (background, async)                 #
+#  Requires: Telegram bot configured, rclone optional                        #
+#  Cron: 0 4 * * * /path/to/scripts/offsite-backup.sh                       #
 ###############################################################################
 
 set -euo pipefail
@@ -19,80 +20,117 @@ BACKUP_DIR="$PROJECT_DIR/backups"
 REMOTE_NAME="${RCLONE_REMOTE:-offsite}"
 REMOTE_PATH="${RCLONE_PATH:-matrix-backup}"
 
-# Check if rclone is configured
-if ! rclone listremotes | grep -q "^${REMOTE_NAME}:"; then
-    echo "[$(date)] ERROR: rclone remote '${REMOTE_NAME}' not configured"
-    echo "[$(date)] Run: rclone config"
-    exit 1
-fi
+echo "[$(date)] Starting offsite backup..."
 
-echo "[$(date)] Starting offsite backup upload..."
+# ──────────────────────────────────────────────
+# Step 1: Send to Telegram (Primary backup)
+# ──────────────────────────────────────────────
+TELEGRAM_SENT=0
+TELEGRAM_FAILED=0
 
-# Upload all backup files
-UPLOADED=0
-FAILED=0
-
-# Find all backup files (both .sql.gz and .sql.gz.gpg)
-while IFS= read -r file; do
-    if [[ -f "$file" ]]; then
-        FILENAME=$(basename "$file")
-        echo "[$(date)] Uploading $FILENAME..."
-        
-        # Use timeout and non-interactive flags to prevent hanging
-        # --no-traverse: Don't list destination, faster for single files
-        # --ignore-times: Skip timestamp checks, just upload
-        # --no-check-certificate: Skip SSL verification if causing issues
-        # 2>&1: Capture all output
-        if timeout 60 rclone copy "$file" "${REMOTE_NAME}:${REMOTE_PATH}/" \
-            --transfers=4 \
-            --retries 1 \
-            --low-level-retries 1 \
-            --timeout 30s \
-            --no-traverse \
-            --ignore-times \
-            --quiet \
-            --no-check-certificate 2>&1 | grep -v "^$"; then
-            ((UPLOADED++))
-            echo "[$(date)] ✅ Success: $FILENAME"
-        else
-            EXIT_CODE=${PIPESTATUS[0]}
-            if [[ $EXIT_CODE -eq 0 ]]; then
-                # Exit code 0 but grep filtered output = success
-                ((UPLOADED++))
-                echo "[$(date)] ✅ Success: $FILENAME"
-            elif [[ $EXIT_CODE -eq 124 ]]; then
-                ((FAILED++))
-                echo "[$(date)] ❌ Failed: $FILENAME (timeout after 60s)"
+if [[ -n "${TELEGRAM_BOT_TOKEN:-}" && "$TELEGRAM_BOT_TOKEN" != "CHANGE_ME"* ]]; then
+    echo "[$(date)] Sending backups to Telegram..."
+    
+    while IFS= read -r file; do
+        if [[ -f "$file" ]]; then
+            FILENAME=$(basename "$file")
+            FILESIZE=$(du -h "$file" | cut -f1)
+            
+            echo "[$(date)] 📤 Sending $FILENAME ($FILESIZE)..."
+            
+            # Telegram has 50MB file limit
+            if curl -s -X POST \
+                "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument" \
+                -F "chat_id=${TELEGRAM_CHAT_ID}" \
+                -F "document=@$file" \
+                -F "caption=💾 Matrix Backup
+📁 File: <code>$FILENAME</code>
+📦 Size: <code>$FILESIZE</code>
+🕐 <code>$(date '+%Y-%m-%d %H:%M:%S')</code>" \
+                -F "parse_mode=HTML" > /dev/null 2>&1; then
+                ((TELEGRAM_SENT++))
+                echo "[$(date)] ✅ Telegram: $FILENAME"
             else
-                ((FAILED++))
-                echo "[$(date)] ❌ Failed: $FILENAME (exit code: $EXIT_CODE)"
+                ((TELEGRAM_FAILED++))
+                echo "[$(date)] ⚠️ Telegram failed: $FILENAME (file too large or network error)"
             fi
         fi
-    fi
-done < <(find "$BACKUP_DIR" -type f \( -name "synapse_db_*.sql.gz" -o -name "synapse_db_*.sql.gz.gpg" \))
+    done < <(find "$BACKUP_DIR" -type f \( -name "synapse_db_*.sql.gz" -o -name "synapse_db_*.sql.gz.gpg" \) -mtime -1)
+    
+    echo "[$(date)] Telegram: $TELEGRAM_SENT sent, $TELEGRAM_FAILED failed"
+else
+    echo "[$(date)] ⚠️ Telegram not configured, skipping..."
+fi
 
+# ──────────────────────────────────────────────
+# Step 2: Upload to rclone (Secondary backup)
+# ──────────────────────────────────────────────
+RCLONE_UPLOADED=0
+RCLONE_FAILED=0
+
+# Check if rclone is configured
+if rclone listremotes 2>/dev/null | grep -q "^${REMOTE_NAME}:"; then
+    echo "[$(date)] Uploading to rclone (${REMOTE_NAME}:${REMOTE_PATH})..."
+    
+    while IFS= read -r file; do
+        if [[ -f "$file" ]]; then
+            FILENAME=$(basename "$file")
+            echo "[$(date)] 📤 Uploading $FILENAME..."
+            
+            # Run rclone in background with timeout
+            if timeout 60 rclone copy "$file" "${REMOTE_NAME}:${REMOTE_PATH}/" \
+                --transfers=4 \
+                --retries 1 \
+                --timeout 30s \
+                --no-traverse \
+                --ignore-times \
+                --quiet 2>&1 | grep -v "^$" || true; then
+                ((RCLONE_UPLOADED++))
+                echo "[$(date)] ✅ Rclone: $FILENAME"
+            else
+                ((RCLONE_FAILED++))
+                echo "[$(date)] ⚠️ Rclone failed: $FILENAME"
+            fi
+        fi
+    done < <(find "$BACKUP_DIR" -type f \( -name "synapse_db_*.sql.gz" -o -name "synapse_db_*.sql.gz.gpg" \) -mtime -1)
+    
+    echo "[$(date)] Rclone: $RCLONE_UPLOADED uploaded, $RCLONE_FAILED failed"
+else
+    echo "[$(date)] ⚠️ Rclone remote '${REMOTE_NAME}' not configured, skipping..."
+    echo "[$(date)] Run: rclone config"
+fi
+
+# ──────────────────────────────────────────────
+# Summary
+# ──────────────────────────────────────────────
 echo ""
 echo "════════════════════════════════════════════════════════════"
-echo "[$(date)] Upload complete: $UPLOADED files uploaded, $FAILED failed"
+echo "[$(date)] Offsite Backup Summary:"
+echo "  📱 Telegram: $TELEGRAM_SENT sent, $TELEGRAM_FAILED failed"
+echo "  ☁️  Rclone:   $RCLONE_UPLOADED uploaded, $RCLONE_FAILED failed"
 echo "════════════════════════════════════════════════════════════"
 echo ""
 
-# Send Telegram notification
+# Send summary notification
 if [[ -n "${TELEGRAM_BOT_TOKEN:-}" && "$TELEGRAM_BOT_TOKEN" != "CHANGE_ME"* ]]; then
+    TOTAL_SUCCESS=$((TELEGRAM_SENT + RCLONE_UPLOADED))
+    TOTAL_FAILED=$((TELEGRAM_FAILED + RCLONE_FAILED))
+    
     STATUS_EMOJI="✅"
-    [[ $FAILED -gt 0 ]] && STATUS_EMOJI="⚠️"
+    [[ $TOTAL_FAILED -gt 0 ]] && STATUS_EMOJI="⚠️"
     
     curl -s -X POST \
         "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
         -d "chat_id=${TELEGRAM_CHAT_ID}" \
         -d "parse_mode=HTML" \
         -d "text=${STATUS_EMOJI} <b>Offsite Backup Complete</b>
-📤 Uploaded: <code>${UPLOADED}</code> file(s)
-❌ Failed: <code>${FAILED}</code>
-📍 Remote: <code>${REMOTE_NAME}:${REMOTE_PATH}</code>
+
+� <b>Telegram:</b> <code>${TELEGRAM_SENT}</code> sent, <code>${TELEGRAM_FAILED}</code> failed
+☁️ <b>Rclone:</b> <code>${RCLONE_UPLOADED}</code> uploaded, <code>${RCLONE_FAILED}</code> failed
+
 🕐 <code>$(date '+%Y-%m-%d %H:%M:%S')</code>" > /dev/null
     
-    echo "[$(date)] Telegram notification sent"
+    echo "[$(date)] Summary notification sent to Telegram"
 fi
 
-echo "[$(date)] Offsite backup completed successfully! 🎉"
+echo "[$(date)] Offsite backup completed! 🎉"
