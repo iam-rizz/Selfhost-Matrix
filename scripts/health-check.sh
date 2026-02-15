@@ -14,9 +14,18 @@ if [[ -f "$PROJECT_DIR/.env" ]]; then
     source "$PROJECT_DIR/.env"
 fi
 
+# Construct Synapse URL based on configuration
 DOMAIN="${DOMAIN:-example.com}"
-SYNAPSE_SUBDOMAIN="${SYNAPSE_SUBDOMAIN:-chat}"
-SYNAPSE_URL="https://${SYNAPSE_SUBDOMAIN}.${DOMAIN}"
+USE_ROOT_DOMAIN="${USE_ROOT_DOMAIN:-false}"
+
+if [[ "$USE_ROOT_DOMAIN" == "true" ]]; then
+    SYNAPSE_DOMAIN="${DOMAIN}"
+else
+    SYNAPSE_SUBDOMAIN="${SYNAPSE_SUBDOMAIN:-matrix}"
+    SYNAPSE_DOMAIN="${SYNAPSE_SUBDOMAIN}.${DOMAIN}"
+fi
+
+SYNAPSE_URL="https://${SYNAPSE_DOMAIN}"
 
 ALERT=false
 ALERT_MSG=""
