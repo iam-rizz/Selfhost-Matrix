@@ -147,14 +147,17 @@ fi
 
 # Step 7: Restore database
 log "📥 Restoring database (this may take several minutes)..."
+echo -n "   Progress: "
 START_TIME=$(date +%s)
 
-if docker exec -i matrix-postgres psql -U synapse synapse < "$TEMP_SQL" 2>&1 | grep -v "^$"; then
+if docker exec -i matrix-postgres psql -U synapse synapse < "$TEMP_SQL" >/dev/null 2>&1; then
     END_TIME=$(date +%s)
     DURATION=$((END_TIME - START_TIME))
+    echo "✅ Done"
     log "Restore completed in ${DURATION} seconds"
 else
-    error "Failed to restore database"
+    echo "❌ Failed"
+    error "Failed to restore database. Check logs: docker logs matrix-postgres"
 fi
 
 # Step 8: Cleanup temporary file
