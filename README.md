@@ -431,19 +431,37 @@ synapse-worker-generic:
 
 ### Grafana Dashboards
 
-**Access:** `http://localhost:3000`
+**Access:** `http://localhost:3000`  
+**Login:** admin / `<GF_SECURITY_ADMIN_PASSWORD from .env>`
 
-**Pre-configured Dashboards:**
-1. **Synapse Overview** - Requests, users, rooms
-2. **System Metrics** - CPU, RAM, disk, network
-3. **PostgreSQL** - Database performance
-4. **Redis** - Cache hit rates
+**Available Dashboards:**
 
-### Prometheus Queries
+| Dashboard | Source | Metrics |
+|-----------|--------|---------|
+| **Synapse** | Official (GitHub) | DAU/MAU, requests, database, cache, federation |
+| **Node Exporter** | ID: 1860 | CPU, memory, disk, network, system stats |
+| **Prometheus Stats** | ID: 19105 | Prometheus metrics, scrape stats, TSDB |
+| **Traefik** | ID: 17346 | Requests, response times, TLS, backends |
 
-**Active Users:**
+**Location:** Dashboards → Browse → Matrix folder
+
+**Auto-provisioned from:** `grafana/provisioning/dashboards/`
+
+### Prometheus Targets
+
+**Access:** `http://localhost:9090/targets`
+
+**All targets should be UP:**
+- ✅ `synapse` (synapse:9000) - Matrix homeserver metrics
+- ✅ `node-exporter` (node-exporter:9100) - System metrics
+- ✅ `prometheus` (localhost:9090) - Self-monitoring
+- ✅ `traefik` (traefik:8080) - Reverse proxy metrics
+
+### Useful Prometheus Queries
+
+**Active Users (DAU):**
 ```promql
-synapse_admin_mau:current
+synapse_admin_mau:current{job="synapse"}
 ```
 
 **Request Rate:**
@@ -451,9 +469,24 @@ synapse_admin_mau:current
 rate(synapse_http_server_requests_total[5m])
 ```
 
+**Request Latency (p95):**
+```promql
+histogram_quantile(0.95, rate(synapse_http_server_response_time_seconds_bucket[5m]))
+```
+
 **Database Connections:**
 ```promql
 synapse_database_connections
+```
+
+**Cache Hit Rate:**
+```promql
+rate(synapse_util_caches_cache_hits[5m]) / (rate(synapse_util_caches_cache_hits[5m]) + rate(synapse_util_caches_cache_misses[5m]))
+```
+
+**Traefik Request Rate:**
+```promql
+rate(traefik_entrypoint_requests_total[5m])
 ```
 
 ### Logs
@@ -468,11 +501,17 @@ docker compose logs -f
 docker logs -f matrix-synapse
 docker logs -f matrix-traefik
 docker logs -f matrix-coturn
+docker logs -f matrix-grafana
 ```
 
 **Synapse Logs:**
 ```bash
 tail -f synapse-data/logs/homeserver.log
+```
+
+**Filter Errors:**
+```bash
+docker logs matrix-synapse 2>&1 | grep -i error
 ```
 
 ---
@@ -535,7 +574,96 @@ docker compose restart
 
 ### Common Issues
 
-#### 1. Coturn Memory Leak (16GB RAM)
+#### 1. Traefik DOWN in Prometheus ❌ → ✅
+
+**Symptoms:**
+- Prometheus showing Traefik target as DOWN
+- Error: `connection refused` on port 8082
+
+**Root Cause:**
+- Traefik v3 exposes metrics on port **8080** (not 8082)
+- Metrics entrypoint not configured
+
+**Solution:**
+```bash
+# Already fixed in latest version
+git pull origin main
+docker compose restart traefik prometheus
+
+# Verify metrics endpoint
+curl http://localhost:8080/metrics
+
+# Check Prometheus targets
+http://localhost:9090/targets
+# Traefik should be UP now
+```
+
+**Details:** See [docs/TRAEFIK_METRICS_FIX.md](docs/TRAEFIK_METRICS_FIX.md)
+
+#### 2. Grafana Dashboard Showing N/A
+
+**Symptoms:**
+- Dashboard panels show "N/A" or "No data"
+
+**Common Causes:**
+
+**A. Wrong Datasource:**
+```bash
+# Check Grafana datasource
+http://localhost:3000/datasources
+
+# Should show: Prometheus (http://prometheus:9090)
+# Click "Save & Test" - should show "Data source is working"
+```
+
+**B. Incompatible Dashboard:**
+```bash
+# Some dashboards use wrong datasource variables
+# Example: ${DS_THEMIS} instead of Prometheus
+
+# Solution: Use dashboards from our repo
+git pull origin main
+docker compose restart grafana
+```
+
+**C. Metrics Not Available:**
+```bash
+# Check if service exposes metrics
+curl http://localhost:9000/metrics  # Synapse
+curl http://localhost:8080/metrics  # Traefik
+curl http://localhost:9100/metrics  # Node Exporter
+
+# Check Prometheus scraping
+http://localhost:9090/targets
+# All targets should be UP
+```
+
+#### 3. Grafana Dashboard Not Loading
+
+**Error:**
+```
+failed to walk provisioned dashboards: no such file or directory
+```
+
+**Solution:**
+```bash
+# Verify dashboard files exist
+ls -la grafana/provisioning/dashboards/
+
+# Should show:
+# - synapse.json
+# - node-exporter.json
+# - prometheus-stats.json
+# - traefik.json
+
+# If missing, pull latest
+git pull origin main
+
+# Restart Grafana
+docker compose restart grafana
+```
+
+#### 4. Coturn Memory Leak (16GB RAM)
 
 **Symptoms:**
 - Coturn consuming all system memory
@@ -543,7 +671,7 @@ docker compose restart
 
 **Solution:**
 ```bash
-# Already fixed in latest version with network_mode: host
+# Already fixed with network_mode: host
 git pull origin main
 docker compose up -d coturn
 
@@ -551,14 +679,15 @@ docker compose up -d coturn
 docker stats matrix-coturn
 ```
 
-**Root Cause:** Port mapping overhead in bridge mode.
+**Root Cause:** Port mapping overhead in bridge mode.  
+**Details:** See [docs/COTURN_MEMORY_FIX.md](docs/COTURN_MEMORY_FIX.md)
 
-#### 2. SSL Certificate Not Generating
+#### 5. SSL Certificate Not Generating
 
 **Check:**
 ```bash
 # View Traefik logs
-docker logs matrix-traefik
+docker logs matrix-traefik | grep -i acme
 
 # Check DNS
 dig your-domain.com
@@ -571,10 +700,13 @@ sudo ufw status
 ```bash
 # Ensure DNS points to server
 # Wait 5-10 minutes for DNS propagation
-# Check Traefik logs for ACME errors
+
+# Force certificate renewal
+rm traefik-data/letsencrypt/acme.json
+docker compose restart traefik
 ```
 
-#### 3. Prometheus Permission Denied
+#### 6. Prometheus Permission Denied
 
 **Error:**
 ```
@@ -587,7 +719,7 @@ chmod -R 777 prometheus-data
 docker compose restart prometheus
 ```
 
-#### 4. Dimension Access Token Invalid
+#### 7. Dimension Access Token Invalid
 
 **Error:**
 ```
@@ -619,7 +751,7 @@ nano .env
 docker compose up -d dimension
 ```
 
-#### 5. Sliding Sync Database Missing
+#### 8. Sliding Sync Database Missing
 
 **Error:**
 ```
@@ -793,9 +925,16 @@ postgres:
 
 ## 📚 Additional Documentation
 
-- [Traefik Dashboard Authentication](docs/TRAEFIK_AUTH.md)
-- [Coturn Memory Fix Guide](docs/COTURN_MEMORY_FIX.md)
+### Setup & Configuration
+- [Complete Deployment Guide](docs/DEPLOYMENT.md)
+- [Security Hardening](docs/SECURITY.md)
 - [Root Domain Support](docs/ROOT_DOMAIN.md)
+
+### Monitoring & Troubleshooting
+- [Grafana Dashboard Setup](docs/GRAFANA_DASHBOARD.md)
+- [Traefik Metrics Fix](docs/TRAEFIK_METRICS_FIX.md)
+- [Coturn Memory Fix Guide](docs/COTURN_MEMORY_FIX.md)
+- [Traefik Dashboard Authentication](docs/TRAEFIK_AUTH.md)
 
 ---
 
