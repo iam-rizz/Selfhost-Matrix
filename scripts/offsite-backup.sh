@@ -36,15 +36,21 @@ FAILED=0
 while IFS= read -r file; do
     if [[ -f "$file" ]]; then
         echo "[$(date)] Uploading $(basename "$file")..."
-        if rclone copy "$file" "${REMOTE_NAME}:${REMOTE_PATH}/" --transfers=4 --progress; then
+        if rclone copy "$file" "${REMOTE_NAME}:${REMOTE_PATH}/" --transfers=4; then
             ((UPLOADED++))
+            echo "[$(date)] ✅ Success: $(basename "$file")"
         else
             ((FAILED++))
+            echo "[$(date)] ❌ Failed: $(basename "$file")"
         fi
     fi
 done < <(find "$BACKUP_DIR" -type f \( -name "synapse_db_*.sql.gz" -o -name "synapse_db_*.sql.gz.gpg" \))
 
+echo ""
+echo "════════════════════════════════════════════════════════════"
 echo "[$(date)] Upload complete: $UPLOADED files uploaded, $FAILED failed"
+echo "════════════════════════════════════════════════════════════"
+echo ""
 
 # Send Telegram notification
 if [[ -n "${TELEGRAM_BOT_TOKEN:-}" && "$TELEGRAM_BOT_TOKEN" != "CHANGE_ME"* ]]; then
@@ -60,4 +66,8 @@ if [[ -n "${TELEGRAM_BOT_TOKEN:-}" && "$TELEGRAM_BOT_TOKEN" != "CHANGE_ME"* ]]; 
 ❌ Failed: <code>${FAILED}</code>
 📍 Remote: <code>${REMOTE_NAME}:${REMOTE_PATH}</code>
 🕐 <code>$(date '+%Y-%m-%d %H:%M:%S')</code>" > /dev/null
+    
+    echo "[$(date)] Telegram notification sent"
 fi
+
+echo "[$(date)] Offsite backup completed successfully! 🎉"
