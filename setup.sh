@@ -137,23 +137,26 @@ substitute_vars() {
     sed -i \
         -e "s|__DOMAIN__|${DOMAIN}|g" \
         -e "s|__SYNAPSE_DOMAIN__|${SYNAPSE_DOMAIN}|g" \
-        -e "s|__SYNAPSE_SUBDOMAIN__|${SYNAPSE_SUBDOMAIN}|g" \
-        -e "s|__ELEMENT_SUBDOMAIN__|${ELEMENT_SUBDOMAIN}|g" \
-        -e "s|__DIMENSION_SUBDOMAIN__|${DIMENSION_SUBDOMAIN}|g" \
+        -e "s|__SYNAPSE_SUBDOMAIN__|${SYNAPSE_SUBDOMAIN:-chat}|g" \
+        -e "s|__ELEMENT_SUBDOMAIN__|${ELEMENT_SUBDOMAIN:-element}|g" \
+        -e "s|__DIMENSION_SUBDOMAIN__|${DIMENSION_SUBDOMAIN:-dimension}|g" \
         -e "s|__JITSI_SUBDOMAIN__|${JITSI_SUBDOMAIN:-meet}|g" \
-        -e "s|__ACME_EMAIL__|${ACME_EMAIL}|g" \
-        -e "s|__POSTGRES_USER__|${POSTGRES_USER}|g" \
-        -e "s|__POSTGRES_PASSWORD__|${POSTGRES_PASSWORD}|g" \
-        -e "s|__POSTGRES_DB__|${POSTGRES_DB}|g" \
+        -e "s|__ACME_EMAIL__|${ACME_EMAIL:-}|g" \
+        -e "s|__POSTGRES_USER__|${POSTGRES_USER:-synapse}|g" \
+        -e "s|__POSTGRES_PASSWORD__|${POSTGRES_PASSWORD:-}|g" \
+        -e "s|__POSTGRES_DB__|${POSTGRES_DB:-synapse}|g" \
         -e "s|__REDIS_PASSWORD__|${REDIS_PASSWORD:-}|g" \
         -e "s|__SYNAPSE_MAX_UPLOAD_SIZE__|${SYNAPSE_MAX_UPLOAD_SIZE:-50M}|g" \
         -e "s|__SYNAPSE_ENABLE_REGISTRATION__|${SYNAPSE_ENABLE_REGISTRATION:-false}|g" \
         -e "s|__SYNAPSE_REGISTRATION_SHARED_SECRET__|${SYNAPSE_REGISTRATION_SHARED_SECRET:-}|g" \
         -e "s|__SYNAPSE_MACAROON_SECRET_KEY__|${SYNAPSE_MACAROON_SECRET_KEY:-}|g" \
         -e "s|__SYNAPSE_FORM_SECRET__|${SYNAPSE_FORM_SECRET:-}|g" \
+        -e "s|__ENABLE_REGISTRATION_CAPTCHA__|${ENABLE_REGISTRATION_CAPTCHA:-false}|g" \
+        -e "s|__RECAPTCHA_PUBLIC_KEY__|${RECAPTCHA_PUBLIC_KEY:-}|g" \
+        -e "s|__RECAPTCHA_PRIVATE_KEY__|${RECAPTCHA_PRIVATE_KEY:-}|g" \
         -e "s|__TURN_SECRET__|${TURN_SECRET:-}|g" \
         -e "s|__TURN_MIN_PORT__|${TURN_MIN_PORT:-49152}|g" \
-        -e "s|__TURN_MAX_PORT__|${TURN_MAX_PORT:-65535}|g" \
+        -e "s|__TURN_MAX_PORT__|${TURN_MAX_PORT:-50151}|g" \
         -e "s|__DIMENSION_ACCESS_TOKEN__|${DIMENSION_ACCESS_TOKEN:-}|g" \
         -e "s|__DIMENSION_API_SECRET__|${DIMENSION_API_SECRET:-}|g" \
         -e "s|__TELEGRAM_BOT_TOKEN__|${TELEGRAM_BOT_TOKEN:-}|g" \

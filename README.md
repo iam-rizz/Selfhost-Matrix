@@ -1102,6 +1102,7 @@ postgres:
 ### Backup & Security
 - [Database Restore Guide](docs/DATABASE_RESTORE.md)
 - [GPG Backup Encryption](docs/GPG_BACKUP_ENCRYPTION.md)
+- [reCAPTCHA Setup Guide](docs/RECAPTCHA_SETUP.md)
 
 ---
 

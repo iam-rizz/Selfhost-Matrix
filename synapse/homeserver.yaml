@@ -105,6 +105,11 @@ enable_registration: __SYNAPSE_ENABLE_REGISTRATION__
 enable_registration_without_verification: true
 registration_shared_secret: "__SYNAPSE_REGISTRATION_SHARED_SECRET__"
 
+# reCAPTCHA protection (optional)
+enable_registration_captcha: __ENABLE_REGISTRATION_CAPTCHA__
+recaptcha_public_key: "__RECAPTCHA_PUBLIC_KEY__"
+recaptcha_private_key: "__RECAPTCHA_PRIVATE_KEY__"
+
 ## Security ##
 macaroon_secret_key: "__SYNAPSE_MACAROON_SECRET_KEY__"
 form_secret: "__SYNAPSE_FORM_SECRET__"
