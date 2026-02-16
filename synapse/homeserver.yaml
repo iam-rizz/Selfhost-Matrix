@@ -23,13 +23,9 @@ instance_map:
     host: synapse-worker-media
     port: 8010
 
-# Stream writers for event distribution
-stream_writers:
-  typing: generic_worker1
-  to_device: generic_worker1
-  account_data: generic_worker1
-  receipts: generic_worker1
-  presence: generic_worker1
+# Stream writers removed - generic_worker cannot handle writes
+# All write operations will be handled by main Synapse
+# Workers only handle read operations (client/federation requests)
 
 # Federation sender instances
 federation_sender_instances:
