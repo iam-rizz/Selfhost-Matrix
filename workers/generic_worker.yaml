@@ -10,8 +10,9 @@ worker_name: generic_worker1
 worker_listeners:
   - type: http
     port: 8009
+    bind_addresses: ['0.0.0.0']
     resources:
-      - names: [client, federation]
+      - names: [client, federation, replication]
 
 # Logging
 worker_log_config: /data/workers/generic_worker_log.yaml
