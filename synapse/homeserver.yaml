@@ -48,6 +48,12 @@ listeners:
     type: metrics
     bind_addresses: ["0.0.0.0"]
 
+## Presence ##
+# Disable presence tracking to avoid replication errors
+# Presence (online/offline status) is non-critical for self-hosted servers
+presence:
+  enabled: false
+
 ## Database ##
 database:
   name: psycopg2
