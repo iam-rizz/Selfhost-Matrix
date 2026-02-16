@@ -296,12 +296,23 @@ curl https://federationtester.matrix.org/api/report?server_name=your-domain.com
 - Delegates work to workers
 
 **Workers:**
-- `generic_worker` - Client sync, typing, presence
+- `generic_worker` - Client sync, typing, presence, federation
 - `media_worker` - Media upload/download
 - `federation_sender` - Outbound federation
 
+**Worker Capabilities:**
+
+| Worker Type | Can Handle | Cannot Handle |
+|-------------|------------|---------------|
+| `generic_worker` | ✅ Client reads (sync, messages)<br>✅ Federation requests<br>✅ Replication endpoints | ❌ Event writes (sending messages)<br>❌ Account data writes<br>❌ Receipt writes |
+| `media_worker` | ✅ Media upload/download<br>✅ Thumbnails | ❌ Media deletion (admin only) |
+| `federation_sender` | ✅ Outbound federation<br>✅ EDU sending | ❌ Inbound federation |
+
+**Important:** Generic workers **cannot** handle write operations. All writes (messages, receipts, to_device) are handled by main Synapse.
+
 **Configuration:**
-- File: `synapse/homeserver.yaml`
+- Main: `synapse/homeserver.yaml`
+- Workers: `workers/generic_worker.yaml`, `workers/media_worker.yaml`, `workers/federation_sender.yaml`
 - Logs: `synapse-data/logs/`
 - Database: PostgreSQL `synapse` database
 
@@ -929,6 +940,143 @@ docker exec -it matrix-postgres psql -U synapse -c "GRANT ALL PRIVILEGES ON DATA
 
 # Restart
 docker compose up -d sliding-sync
+```
+
+#### 9. Worker 500 Internal Server Error ❌ → ✅
+
+**Symptoms:**
+- Messages fail to send with 500 error
+- Voice/video calls don't work
+- Browser console shows `M_UNKNOWN` errors
+
+**Error in Synapse logs:**
+```
+AssertionError: assert self._can_write_to_receipts
+AssertionError: assert self._can_write_to_device
+```
+
+**Root Cause:**
+`stream_writers` configuration in `homeserver.yaml` delegates write operations to `generic_worker`, but **generic workers cannot handle writes**. They only handle:
+- ✅ Client read requests (sync, messages)
+- ✅ Federation requests
+- ✅ Replication endpoints
+- ❌ Write operations (messages, receipts, to_device)
+
+**Solution:**
+
+```bash
+# Already fixed in latest version
+git pull origin main
+
+# Restart in correct order
+cd ~/Selfhost-Matrix
+
+# 1. Stop workers first
+docker compose stop synapse-worker-generic synapse-worker-media synapse-worker-federation-sender
+
+# 2. Restart main Synapse (loads new config without stream_writers)
+docker compose restart synapse
+
+# 3. Wait for main Synapse to be healthy
+sleep 15
+
+# 4. Start workers
+docker compose up -d synapse-worker-generic synapse-worker-media synapse-worker-federation-sender
+
+# 5. Verify all healthy
+docker compose ps | grep -E "synapse|worker"
+```
+
+**What was fixed:**
+- ✅ Removed `stream_writers` from `homeserver.yaml`
+- ✅ All write operations now handled by main Synapse
+- ✅ Workers only handle read/federation traffic
+
+**Verify fix:**
+```bash
+# Test sending message - should work now
+# Test voice/video call - should work now
+
+# Check logs for errors
+docker logs matrix-synapse --tail 50 | grep -i "error\|500"
+```
+
+#### 10. Worker Replication 404 Errors
+
+**Symptoms:**
+- Worker logs show: `404 - Unrecognized request` on replication endpoints
+- Secret storage setup fails with `Failed to talk to generic_worker1`
+
+**Error in worker logs:**
+```
+POST synapse-replication://master/_synapse/replication/presence_set_state/... 404
+```
+
+**Root Cause:**
+Worker listener not configured to handle replication HTTP endpoints.
+
+**Solution:**
+
+```bash
+# Already fixed in workers/generic_worker.yaml
+git pull origin main
+docker compose restart synapse-worker-generic
+```
+
+**What was fixed:**
+```yaml
+# workers/generic_worker.yaml
+worker_listeners:
+  - type: http
+    port: 8009
+    bind_addresses: ['0.0.0.0']  # ← Added: Bind to all interfaces
+    resources:
+      - names: [client, federation, replication]  # ← Added: replication
+```
+
+**Verify fix:**
+```bash
+# Check worker logs - should show 200 OK on replication endpoints
+docker logs matrix-synapse-worker-generic | grep replication
+
+# Test secret storage setup in Element - should work now
+```
+
+#### 11. Workers Showing Unhealthy
+
+**Symptoms:**
+```bash
+docker compose ps
+# matrix-synapse-worker-generic    Up (unhealthy)
+```
+
+**Common Causes:**
+
+**A. Database serialization errors:**
+```bash
+# Check worker logs
+docker logs matrix-synapse-worker-generic | grep -i error
+
+# If you see: psycopg2.errors.SerializationFailure
+# Solution: Restart workers after main Synapse is healthy
+docker compose restart synapse-worker-generic
+```
+
+**B. Config mismatch:**
+```bash
+# Workers trying to use old config
+# Solution: Always restart main Synapse BEFORE workers
+docker compose restart synapse
+sleep 10
+docker compose restart synapse-worker-generic synapse-worker-media
+```
+
+**C. Port conflicts:**
+```bash
+# Check if ports are already in use
+sudo netstat -tulpn | grep -E "8009|8010|8011"
+
+# Solution: Stop conflicting services or change ports in docker-compose.yml
 ```
 
 ### Health Checks
