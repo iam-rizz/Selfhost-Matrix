@@ -161,7 +161,23 @@ substitute_vars() {
         -e "s|__DIMENSION_API_SECRET__|${DIMENSION_API_SECRET:-}|g" \
         -e "s|__TELEGRAM_BOT_TOKEN__|${TELEGRAM_BOT_TOKEN:-}|g" \
         -e "s|__TELEGRAM_CHAT_ID__|${TELEGRAM_CHAT_ID:-}|g" \
+        -e "s|__SMTP_HOST__|${SMTP_HOST:-}|g" \
+        -e "s|__SMTP_PORT__|${SMTP_PORT:-587}|g" \
+        -e "s|__SMTP_USER__|${SMTP_USER:-}|g" \
+        -e "s|__SMTP_PASS__|${SMTP_PASS:-}|g" \
+        -e "s|__SMTP_FORCE_TLS__|${SMTP_FORCE_TLS:-false}|g" \
+        -e "s|__SMTP_REQUIRE_TLS__|${SMTP_REQUIRE_TLS:-false}|g" \
+        -e "s|__SMTP_ENABLE_TLS__|${SMTP_ENABLE_TLS:-true}|g" \
+        -e "s|__SMTP_NOTIF_FROM__|${SMTP_NOTIF_FROM:-Matrix <noreply@${DOMAIN}>}|g" \
+        -e "s|__SYNAPSE_ENABLE_REGISTRATION_WITHOUT_VERIFICATION__|${SYNAPSE_ENABLE_REGISTRATION_WITHOUT_VERIFICATION:-true}|g" \
         "$file"
+        
+    # If this is homeserver.yaml and SMTP is disabled, remove the email block cleanly
+    if [[ "$(basename "$file")" == "homeserver.yaml" ]] && [[ -z "${SMTP_HOST:-}" ]]; then
+        # Delete from '## Email (SMTP) ##' up to '## Room ##' (exclusive)
+        sed -i '/## Email (SMTP) ##/,/## Room ##/{/## Room ##/!d}' "$file"
+        log "SMTP disabled, removed email config from homeserver.yaml"
+    fi
     
     log "Configured $(basename "$file")"
 }

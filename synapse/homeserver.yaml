@@ -104,7 +104,7 @@ url_preview_ip_range_blacklist:
 
 ## Registration ##
 enable_registration: __SYNAPSE_ENABLE_REGISTRATION__
-enable_registration_without_verification: true
+enable_registration_without_verification: __SYNAPSE_ENABLE_REGISTRATION_WITHOUT_VERIFICATION__
 registration_shared_secret: "__SYNAPSE_REGISTRATION_SHARED_SECRET__"
 
 # reCAPTCHA protection (optional)
@@ -162,6 +162,20 @@ turn_allow_guests: false
 enable_metrics: true
 report_stats: false
 
+
+## Email (SMTP) ##
+email:
+  smtp_host: "__SMTP_HOST__"
+  smtp_port: __SMTP_PORT__
+  smtp_user: "__SMTP_USER__"
+  smtp_pass: "__SMTP_PASS__"
+  force_tls: __SMTP_FORCE_TLS__
+  require_transport_security: __SMTP_REQUIRE_TLS__
+  enable_tls: __SMTP_ENABLE_TLS__
+  notif_from: "__SMTP_NOTIF_FROM__"
+  app_name: "Matrix"
+  enable_notifs: false
+  notif_for_new_users: true
 
 ## Room ##
 encryption_enabled_by_default_for_room_type: "all"
