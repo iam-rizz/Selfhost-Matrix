@@ -148,6 +148,12 @@ services:
         condition: service_healthy
     networks:
       - matrix-net
+    healthcheck:
+      test: [ "CMD", "curl", "-fSs", "http://localhost:8008/health" ]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
     labels:
       - "traefik.enable=true"
       # Load balance client requests
@@ -177,6 +183,12 @@ services:
         condition: service_healthy
     networks:
       - matrix-net
+    healthcheck:
+      test: [ "CMD", "curl", "-fSs", "http://localhost:8008/health" ]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
     labels:
       - "traefik.enable=true"
       # Handle media requests
@@ -204,6 +216,8 @@ services:
         condition: service_healthy
     networks:
       - matrix-net
+    healthcheck:
+      disable: true
 
   # ─── Element Web (Matrix Client) ─────────────────────────────────────────
   element:
