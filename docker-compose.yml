@@ -104,7 +104,7 @@ services:
       - ./synapse-data/media_store:/data/media_store
       - ./synapse-data/logs:/data/logs
     ports:
-      - "8008:8008"
+      - "127.0.0.1:8008:8008"
     networks:
       - matrix-net
     healthcheck:
@@ -227,7 +227,7 @@ services:
     volumes:
       - ./element/config.json:/app/config.json:ro
     ports:
-      - "8080:80"
+      - "127.0.0.1:8080:80"
     networks:
       - matrix-net
     labels:
@@ -249,7 +249,7 @@ services:
       - ./dimension/config.yaml:/data/config.yaml:ro
       - ./dimension:/data
     ports:
-      - "8184:8184"
+      - "127.0.0.1:8184:8184"
     networks:
       - matrix-net
     labels:
@@ -289,7 +289,7 @@ services:
     volumes:
       - ./pgadmin-data:/var/lib/pgadmin
     ports:
-      - "5050:80"
+      - "127.0.0.1:5050:80"
     networks:
       - matrix-net
     depends_on:
@@ -302,7 +302,7 @@ services:
     container_name: matrix-synapse-admin
     restart: unless-stopped
     ports:
-      - "8888:80"
+      - "127.0.0.1:8888:80"
     networks:
       - matrix-net
 
@@ -315,7 +315,7 @@ services:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./prometheus-data:/prometheus
     ports:
-      - "9090:9090"
+      - "127.0.0.1:9090:9090"
     networks:
       - matrix-net
     command:
@@ -338,7 +338,7 @@ services:
       - ./grafana/provisioning/dashboards:/var/lib/grafana/dashboards:ro
       - ./grafana-data:/var/lib/grafana
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     networks:
       - matrix-net
 
@@ -350,7 +350,7 @@ services:
     volumes:
       - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
     ports:
-      - "9093:9093"
+      - "127.0.0.1:9093:9093"
     networks:
       - matrix-net
 
@@ -360,7 +360,7 @@ services:
     container_name: matrix-node-exporter
     restart: unless-stopped
     ports:
-      - "9100:9100"
+      - "127.0.0.1:9100:9100"
     networks:
       - matrix-net
     command:
